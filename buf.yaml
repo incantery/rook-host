@@ -1,0 +1,13 @@
+# buf module config: the proto/ tree is the protocol source of truth.
+# Lint keeps the contract boring; breaking-change detection guards the
+# wire — a deployed IDE keeps speaking an old build for as long as it
+# likes, so FILE-level compatibility is a hard requirement, not a style.
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE

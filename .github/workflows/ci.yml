@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: vet and test
+        run: |
+          go vet ./...
+          go test -race ./...
+
+  proto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+      - name: lint
+        run: buf lint
+      - name: breaking (wire compatibility against main)
+        if: github.event_name == 'pull_request'
+        run: buf breaking --against "https://github.com/${GITHUB_REPOSITORY}.git#branch=main"
+      - name: codegen drift
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@$(go list -m -f '{{.Version}}' google.golang.org/protobuf)
+          go install connectrpc.com/connect/cmd/protoc-gen-connect-go@$(go list -m -f '{{.Version}}' connectrpc.com/connect)
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          buf generate
+          git diff --exit-code gen
