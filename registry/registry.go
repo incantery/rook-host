@@ -45,9 +45,8 @@ func KnownCapability(s string) bool {
 }
 
 var (
-	ErrNotFound  = errors.New("registry: no such device")
-	ErrRevoked   = errors.New("registry: device is revoked")
-	ErrDuplicate = errors.New("registry: device already paired")
+	ErrNotFound = errors.New("registry: no such device")
+	ErrRevoked  = errors.New("registry: device is revoked")
 )
 
 // Device is one paired remote surface.
@@ -111,9 +110,17 @@ func Open(path string) (*Registry, error) {
 	return r, nil
 }
 
-// Add registers a freshly paired device. The capability set is
-// filtered to the known vocabulary; an empty result means the device
-// asked for nothing recognizable and is refused.
+// Add registers a paired device, REPLACING any existing registration
+// for the same key — live or tombstoned. Pairing again is not an
+// attack this refusal could stop: the enrollment already proves
+// possession of the very key being replaced, inside a window a human
+// just opened, which is strictly stronger consent than the original
+// pairing had. Refusing it only strands a phone whose cached
+// connection details went stale.
+//
+// The capability set is filtered to the known vocabulary; an empty
+// result means the device asked for nothing recognizable and is
+// refused.
 func (r *Registry) Add(d Device) error {
 	if len(d.PublicKey) != ed25519.PublicKeySize {
 		return fmt.Errorf("registry: device key is %d bytes, want %d", len(d.PublicKey), ed25519.PublicKeySize)
@@ -131,11 +138,6 @@ func (r *Registry) Add(d Device) error {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if existing, ok := r.devices[d.ID]; ok && !existing.Revoked() {
-		return ErrDuplicate
-	}
-	// Re-pairing a revoked key replaces the tombstone: the human held a
-	// fresh QR, which is the ceremony re-admission requires.
 	r.devices[d.ID] = &d
 	return r.persistLocked()
 }

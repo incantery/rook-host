@@ -168,11 +168,14 @@ func (s *Server) Pair(ctx context.Context, req *connect.Request[linkv1.PairReque
 		PairedAt:     s.now().UTC(),
 	}
 	if err := s.reg.Add(d); err != nil {
-		if errors.Is(err, registry.ErrDuplicate) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, err)
-		}
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	// A re-pair replaced any prior registration for this key; sessions
+	// and streams minted under the old one end with it. The device is
+	// mid-pairing, so the cost is one Challenge it was about to run
+	// anyway.
+	s.tokens.dropDevice(deviceID)
+	s.hub.dropDevice(deviceID)
 	granted, _ := s.reg.Get(deviceID)
 	return connect.NewResponse(&linkv1.PairResponse{
 		DeviceId:            deviceID,

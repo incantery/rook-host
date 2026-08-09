@@ -107,14 +107,24 @@ func TestRevokeIsATombstoneAndRePairIsDeliberate(t *testing.T) {
 	}
 }
 
-func TestDuplicateLiveDeviceRefused(t *testing.T) {
+// Re-pairing a live device replaces its registration — possession of
+// the same key inside a fresh human-opened window is stronger consent
+// than the original pairing had, and refusing it only strands a phone
+// whose cached connection details went stale.
+func TestRepairReplacesTheLiveRegistration(t *testing.T) {
 	r, _ := Open(filepath.Join(t.TempDir(), "d.json"))
 	d := dev(t, "phone")
 	if err := r.Add(d); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.Add(d); !errors.Is(err, ErrDuplicate) {
-		t.Fatalf("second add of a live device: %v, want ErrDuplicate", err)
+	d.Name = "phone, renamed"
+	d.Capabilities = []string{CapStatusRead}
+	if err := r.Add(d); err != nil {
+		t.Fatalf("re-pair of a live device refused: %v", err)
+	}
+	got, _ := r.Get("phone")
+	if got.Name != "phone, renamed" || len(got.Capabilities) != 1 || got.Revoked() {
+		t.Fatalf("re-pair did not replace: %+v", got)
 	}
 }
 

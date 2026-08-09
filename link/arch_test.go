@@ -323,6 +323,60 @@ func TestPairingWindowDiscipline(t *testing.T) {
 	}
 }
 
+// Re-pairing the SAME device key through a fresh window replaces the
+// registration — live or revoked, no unpair ceremony required. The
+// stranded-phone case: cached port went stale, rediscovery failed,
+// and "just scan again" must be the whole repair.
+func TestRepairSameKeyThroughFreshWindow(t *testing.T) {
+	r := newRig(t)
+	d := r.pair()
+	r.authenticate(d)
+	oldToken := d.token
+
+	// Same key, fresh window: replaces, and the old session dies with
+	// the old registration.
+	secret, _ := r.pairs.Open(r.now)
+	res, err := r.host.Pair(context.Background(), connect.NewRequest(&linkv1.PairRequest{
+		ProtocolVersion:       link.ProtocolVersion,
+		PairingSecret:         secret,
+		DevicePublicKey:       d.pub,
+		DeviceName:            "same phone, re-paired",
+		RequestedCapabilities: []string{registry.CapStatusRead},
+		Proof:                 identity.SignPairProof(d.key, r.id.HostID(), secret, d.pub),
+	}))
+	if err != nil {
+		t.Fatalf("re-pair refused: %v", err)
+	}
+	if res.Msg.DeviceId != d.id {
+		t.Fatalf("re-pair minted a different device id: %s vs %s", res.Msg.DeviceId, d.id)
+	}
+	stale := linkv1connect.NewLinkServiceClient(
+		&http.Client{Transport: &authed{token: oldToken, base: r.ts.Client().Transport}}, r.ts.URL)
+	if _, err := stale.GetStatus(context.Background(), connect.NewRequest(&linkv1.GetStatusRequest{})); code(err) != connect.CodeUnauthenticated {
+		t.Fatalf("pre-re-pair session survived: %v", err)
+	}
+	r.authenticate(d) // fresh session under the new registration works
+	got, _ := r.reg.Get(d.id)
+	if got.Name != "same phone, re-paired" || len(got.Capabilities) != 1 {
+		t.Fatalf("registration not replaced: %+v", got)
+	}
+
+	// And the revoked case still re-admits by the same road.
+	if err := r.srv.RevokeDevice(d.id); err != nil {
+		t.Fatal(err)
+	}
+	secret2, _ := r.pairs.Open(r.now)
+	if _, err := r.host.Pair(context.Background(), connect.NewRequest(&linkv1.PairRequest{
+		ProtocolVersion: link.ProtocolVersion,
+		PairingSecret:   secret2,
+		DevicePublicKey: d.pub,
+		Proof:           identity.SignPairProof(d.key, r.id.HostID(), secret2, d.pub),
+	})); err != nil {
+		t.Fatalf("re-pair after revoke refused: %v", err)
+	}
+	r.authenticate(d)
+}
+
 // --- Permission enforcement ------------------------------------------
 
 func TestCapabilitiesGatePerRPCAndLive(t *testing.T) {
