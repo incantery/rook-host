@@ -10,16 +10,22 @@ file. The protocol rationale lives in
 ```
 rook-link://pair?v=1
   &hid=<host id, 26 chars lowercase base32>
-  &td=<trust domain id, uuid>
-  &n=<host display name, %-encoded>
   &spki=<base64url( sha256( TLS leaf SubjectPublicKeyInfo DER ) )>
   &s=<base64url 16-byte one-time secret; 120s TTL, single use>
   &p=<listener port>
   &a=<comma-joined direct IPv4 hints, optional>
+  &td=<trust domain id, optional>
+  &n=<host display name, %-encoded, optional>
 ```
 
 Reject anything whose scheme is not `rook-link`, host not `pair`, or
 `v` not `1`. `hid`, `spki`, `s`, and a valid `p` are required.
+
+`td` and `n` are hints a host MAY include; hosts keep the URL minimal
+because every byte is QR modules. The authoritative sources are the
+`PairResponse` (`trust_domain_id`) and a post-pin `GetHostInfo`
+(`host_name`) — prefer those whenever present, and expect the QR to
+carry neither.
 
 ## Connecting (every connection, forever)
 

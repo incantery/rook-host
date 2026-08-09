@@ -88,6 +88,32 @@ func TestQRRoundTrip(t *testing.T) {
 	}
 }
 
+// The optional fields stay out of the URL when empty — every byte is
+// QR modules, and QR modules are terminal columns.
+func TestMinimalQROmitsOptionalFields(t *testing.T) {
+	q := QR{
+		HostID:  "abcdefghijklmnopqrstuvwxyz",
+		SPKIPin: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+		Secret:  "c2VjcmV0LXNlY3JldA",
+		Port:    54321,
+		Addrs:   []string{"192.168.1.10"},
+	}
+	u := q.URL()
+	for _, absent := range []string{"td=", "n="} {
+		if strings.Contains(u, "&"+absent) || strings.Contains(u, "?"+absent) {
+			t.Fatalf("empty optional field emitted: %s in %s", absent, u)
+		}
+	}
+	got, err := ParseURL(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.HostID != q.HostID || got.Secret != q.Secret || got.Port != q.Port ||
+		got.TrustDomainID != "" || got.HostName != "" {
+		t.Fatalf("minimal round trip: %+v", got)
+	}
+}
+
 func TestParseRefusesForeignURLs(t *testing.T) {
 	for _, bad := range []string{
 		"https://evil.example/pair?v=1&hid=x&spki=y&s=z&p=1",

@@ -81,23 +81,34 @@ func (m *Manager) Redeem(secret string, now time.Time) bool {
 // QR is everything the pairing code carries. All values are
 // base64url/base32/digits or %-escaped, so the composed URL is both
 // QR-friendly and shell-safe by construction.
+//
+// HostID, SPKIPin, Secret, and Port are the contract; the rest are
+// optional hints, and OMITTING them is a feature: every byte in this
+// URL is QR modules, and QR modules are terminal columns. The phone
+// learns the display name from GetHostInfo and the trust domain from
+// PairResponse — both better sources than a QR snapshot anyway.
 type QR struct {
 	HostID        string
-	TrustDomainID string
-	HostName      string
+	TrustDomainID string // optional; PairResponse is authoritative
+	HostName      string // optional; GetHostInfo is authoritative
 	SPKIPin       string // base64url sha256 of the TLS leaf SPKI
 	Secret        string // the window's one-time secret
 	Port          int
 	Addrs         []string // direct address hints; Bonjour is the fallback
 }
 
-// URL composes the rook-link://pair form the phone parses.
+// URL composes the rook-link://pair form the phone parses. Empty
+// optional fields are omitted, not emitted empty.
 func (q QR) URL() string {
 	v := url.Values{}
 	v.Set("v", "1")
 	v.Set("hid", q.HostID)
-	v.Set("td", q.TrustDomainID)
-	v.Set("n", q.HostName)
+	if q.TrustDomainID != "" {
+		v.Set("td", q.TrustDomainID)
+	}
+	if q.HostName != "" {
+		v.Set("n", q.HostName)
+	}
 	v.Set("spki", q.SPKIPin)
 	v.Set("s", q.Secret)
 	v.Set("p", strconv.Itoa(q.Port))
