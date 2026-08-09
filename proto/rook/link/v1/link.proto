@@ -1,0 +1,294 @@
+// The device–host link protocol: the channel through which a paired
+// remote surface (a phone) watches a host's live projection and sends
+// back the small vocabulary of actions the host accepts.
+//
+// Design stances this file encodes, per
+// docs/adr/0001-cloud-coordinates-ide-decides.md and
+// docs/adr/0003-qr-pairing-pinned-tls.md:
+//
+//   - Transport is not identity, and reachability is not authorization.
+//     Bonjour finds hosts; the QR-pinned TLS key plus the Ed25519
+//     pairing handshake prove which host this is; a per-connection
+//     signed challenge proves which device this is; and a capability
+//     check guards every RPC after that. Four separate questions, four
+//     separate mechanisms.
+//   - The link is a latency rail, never a correctness rail. Everything
+//     it carries is either a snapshot (latest wins, no history) or an
+//     idempotent instruction keyed by the same natural ID the cloud
+//     rail uses — a command that arrives over both rails is one
+//     command, deduped by the host's delivery journal.
+//   - Every action is TYPED and allowlisted. There is deliberately no
+//     ExecuteShell or RunPrompt here and one must never be added; the
+//     command vocabulary grows by protocol change with review, not by
+//     a client sending a new string.
+//   - Sessions outlive connections. A session token names an
+//     authenticated device, not a socket; reconnecting resumes logical
+//     state, and revocation kills the device's access mid-stream.
+syntax = "proto3";
+
+package rook.link.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/incantery/rook-host/gen/rook/link/v1;linkv1";
+
+// ---------------------------------------------------------------------
+// Pre-session surface: reachable by anything that can open the TLS
+// connection. Nothing here discloses more than the Bonjour TXT record
+// already does, and nothing here performs an action.
+
+service HostService {
+  // GetHostInfo answers "who is this?" for a surface deciding whether
+  // it knows this host. Everything in the response is a CLAIM — the
+  // proof is the TLS pin from the QR plus the pairing handshake.
+  rpc GetHostInfo(GetHostInfoRequest) returns (GetHostInfoResponse);
+
+  // Pair redeems a QR pairing secret for a durable device registration.
+  // Only answers while a human has a pairing window open on the host;
+  // the secret is single-use and expires in minutes. The proof field
+  // demonstrates possession of the device key AND binds the enrollment
+  // to this specific host and secret, so a relayed Pair cannot enroll
+  // the same key elsewhere.
+  rpc Pair(PairRequest) returns (PairResponse);
+
+  // Challenge and Authenticate are the per-connection proof of a
+  // previously paired device key: server nonce out, Ed25519 signature
+  // back, session token issued. The nonce is single-use and short-lived,
+  // so there is no replay window and no clock-skew policy.
+  rpc Challenge(ChallengeRequest) returns (ChallengeResponse);
+  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+}
+
+message GetHostInfoRequest {}
+
+message GetHostInfoResponse {
+  // base32(sha256(host_public_key)[:16]) — the durable host identity,
+  // stable across transports and TLS key rotations.
+  string host_id = 1;
+  // The user-visible name ("Seth's MacBook Pro"). Display only.
+  string host_name = 2;
+  // The trust domain this host belongs to. V1: one machine, one
+  // domain, minted at first boot — but it is its own field everywhere
+  // so multi-host domains are a data change, not a protocol change.
+  string trust_domain_id = 3;
+  repeated string protocol_versions = 4; // ["rook-link/1"]
+  bool pairing_open = 5;
+  // Ed25519, 32 bytes. A claim here; proven by the pairing handshake.
+  bytes host_public_key = 6;
+}
+
+message PairRequest {
+  string protocol_version = 1; // "rook-link/1"
+  // The one-time secret from the QR code, base64url.
+  string pairing_secret = 2;
+  // The device's Ed25519 public key, 32 bytes — minted once on the
+  // device, held in its secure storage, and the durable identity every
+  // future connection proves possession of.
+  bytes device_public_key = 3;
+  string device_name = 4;  // "Seth's iPhone" — display only
+  string device_model = 5; // "iPhone17,2" — display only
+  // The capability subset requested. Granted = requested ∩ the host's
+  // default grant; the host's registry is authoritative thereafter.
+  repeated string requested_capabilities = 6;
+  // Ed25519 by the device key over
+  // canonical("rook-link-pair/v1", host_id, pairing_secret,
+  // device_public_key) — proof of possession, bound to this host and
+  // this pairing window.
+  bytes proof = 7;
+}
+
+message PairResponse {
+  // base32(sha256(device_public_key)[:16]) — the handle every later
+  // Challenge names. Derived, so both sides compute the same one.
+  string device_id = 1;
+  string host_id = 2;
+  string trust_domain_id = 3;
+  bytes host_public_key = 4;
+  repeated string granted_capabilities = 5;
+}
+
+message ChallengeRequest {
+  string device_id = 1;
+}
+
+message ChallengeResponse {
+  // 32 bytes, single-use, short-lived. Consumed by Authenticate whether
+  // the signature verifies or not.
+  bytes nonce = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message AuthenticateRequest {
+  string protocol_version = 1;
+  string device_id = 2;
+  bytes nonce = 3;
+  // Ed25519 by the device key over
+  // canonical("rook-link-auth/v1", host_id, device_id, nonce).
+  // Binding the host_id means a nonce minted by one host cannot be
+  // spent against another.
+  bytes signature = 4;
+}
+
+message AuthenticateResponse {
+  // Opaque session handle, held in host memory only — a HANDLE, not an
+  // authority: every LinkService RPC still checks the device registry,
+  // so revocation needs no token expiry to take effect.
+  bytes session_token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  // Current grants, for UI gating. The host re-checks per RPC; a stale
+  // list here costs a refused call, never a wrongly allowed one.
+  repeated string capabilities = 3;
+  string trust_domain_id = 4;
+}
+
+// ---------------------------------------------------------------------
+// Session surface: every RPC requires a session token (Authorization:
+// Bearer) and the named capability, checked live against the registry.
+
+service LinkService {
+  // GetStatus returns the current projection snapshot. cap: status.read
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+
+  // WatchStatus streams projection snapshots. The FIRST frame is always
+  // the current snapshot — anything published while the stream was down
+  // raced the subscription, and the opening snapshot closes that gap.
+  // After that: latest-wins coalesced snapshots (no history, no gap
+  // replay) and heartbeats that keep intermediaries from cutting an
+  // idle stream. cap: status.read
+  rpc WatchStatus(WatchStatusRequest) returns (stream WatchStatusResponse);
+
+  // SubmitAnswer delivers a reply to an agent's pending ask. The host
+  // delivers it through its own local gates and journals the askId
+  // before acknowledging, so a reply that raced in over the cloud rail
+  // resolves as DUPLICATE, not a double-type. cap: agent.answer
+  rpc SubmitAnswer(SubmitAnswerRequest) returns (SubmitAnswerResponse);
+
+  // SubmitCommand requests one instruction from the allowlist. The host
+  // validates with the SAME rules and natural keys as the cloud rail,
+  // executes synchronously through its local gates, and reports what
+  // actually happened. cap: agent.command
+  rpc SubmitCommand(SubmitCommandRequest) returns (SubmitCommandResponse);
+}
+
+message GetStatusRequest {}
+
+message GetStatusResponse {
+  Status status = 1;
+  // Monotonic per host process. A surface holding seq N drops any frame
+  // ≤ N — reconnects and races collapse to "newest wins".
+  uint64 seq = 2;
+}
+
+message WatchStatusRequest {}
+
+message WatchStatusResponse {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_SNAPSHOT = 1;
+    KIND_HEARTBEAT = 2;
+  }
+  Kind kind = 1;
+  Status status = 2; // set when KIND_SNAPSHOT
+  uint64 seq = 3;
+}
+
+message SubmitAnswerRequest {
+  string ask_id = 1;
+  string text = 2;
+}
+
+message SubmitAnswerResponse {
+  Disposition disposition = 1;
+  // Human-readable when the answer was not simply delivered — "no agent
+  // pane for that ask" — surfaced verbatim on the remote surface.
+  string note = 2;
+}
+
+message SubmitCommandRequest {
+  CommandKind kind = 1;
+  string session_id = 2; // compact | resume
+  string workspace = 3;  // spawn
+  string prompt = 4;     // spawn, optional — reaches the agent as TYPED TEXT
+}
+
+message SubmitCommandResponse {
+  // The natural key, echoed: "compact:<session>", "resume:<session>",
+  // "spawn:<workspace>:<fnv8(prompt)>". The same key the cloud rail
+  // mints for the same instruction — which is exactly why a command
+  // arriving over both rails is one command.
+  string command_id = 1;
+  Disposition disposition = 2;
+  string note = 3;
+}
+
+enum CommandKind {
+  COMMAND_KIND_UNSPECIFIED = 0;
+  COMMAND_KIND_COMPACT = 1;
+  COMMAND_KIND_RESUME = 2;
+  COMMAND_KIND_SPAWN = 3;
+}
+
+// Disposition is what actually happened at the keyboard — visible
+// dedup instead of silent drops.
+enum Disposition {
+  DISPOSITION_UNSPECIFIED = 0;
+  DISPOSITION_DELIVERED = 1;
+  // The delivery journal had already seen this natural key: the first
+  // submission won, this one changed nothing. Success, loudly.
+  DISPOSITION_DUPLICATE = 2;
+  // The instruction could not apply — target gone, gates closed after
+  // bounded retries. The note says why.
+  DISPOSITION_DROPPED = 3;
+}
+
+// ---------------------------------------------------------------------
+// Projection: the wire shape of projection.Status. The Go types remain
+// the in-memory canon (with the clamps); these messages exist so every
+// client generates the same schema instead of hand-mirroring it. The
+// bounds documented here are enforced by Clamp() before anything is
+// published.
+
+message Status {
+  string hostname = 1;
+  string rook_version = 2;
+  repeated Workspace workspaces = 3; // ≤100
+  // When the host produced this snapshot.
+  google.protobuf.Timestamp at = 4;
+}
+
+message Workspace {
+  string name = 1;   // ≤200 bytes
+  string branch = 2; // ≤200 bytes
+  int32 attention = 3;
+  repeated Agent agents = 4; // ≤50
+}
+
+message Agent {
+  // The machine's session id — the handle a command names. May be
+  // empty on old hosts; everything else still works.
+  string id = 1;
+  AgentState state = 2;
+  string title = 3;  // ≤200 bytes
+  string ask = 4;    // ≤2000 bytes — the one field worth reading in full
+  string ask_id = 5; // present exactly when ask is
+  string model = 6;
+  double cost_usd = 7;
+  // Context occupancy as a percent of the model's window. 0 means
+  // unreported; >100 is possible and honest.
+  int32 ctx_pct = 8;
+  AgentDigest digest = 9;
+  google.protobuf.Timestamp last_event = 10;
+}
+
+enum AgentState {
+  AGENT_STATE_UNSPECIFIED = 0;
+  AGENT_STATE_WORKING = 1;
+  AGENT_STATE_NEEDS_INPUT = 2;
+  AGENT_STATE_QUIET = 3;
+}
+
+message AgentDigest {
+  string headline = 1;          // ≤400 bytes
+  repeated string bullets = 2;  // ≤6 × ≤400 bytes
+  google.protobuf.Timestamp at = 3;
+}
