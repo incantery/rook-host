@@ -1,24 +1,27 @@
 // Package bonjour advertises a host's link listener over mDNS —
-// `_rook-link._tcp`, in-process, so the advertisement dies with the
-// process (a plugin's exit is SIGKILL; a subprocess responder would
-// keep answering for a ghost).
+// `_rook-link._tcp` — in-process, so the advertisement dies with the
+// process.
 //
 // The TXT record is a ROUTING HINT, never identity: a phone matches
 // paired hosts by the hid field, then proves the match with the TLS
 // pin and the challenge. Anything on the network can advertise
 // anything; nothing here is trusted.
 //
-// This is the only package in the module allowed to import the mDNS
-// dependency — the boundary test enforces it, and swapping responders
-// stays a one-package change.
+// Two implementations, chosen at build time:
+//
+//   - darwin+cgo: DNSServiceRegister against the system's
+//     mDNSResponder (dns_sd.h lives in libSystem — no dependency).
+//     This is the only registration that RELIABLY answers on macOS:
+//     mDNSResponder owns udp/5353, so a pure-Go responder sharing the
+//     port via REUSEPORT never sees the queries. The daemon also
+//     withdraws the records the moment this process's IPC socket
+//     closes — SIGKILL included — which is exactly the lifecycle a
+//     plugin needs.
+//   - everything else: a pure-Go responder (brutella/dnssd), the only
+//     package in the module allowed to import it (the boundary test
+//     enforces that, and swapping responders stays a one-package
+//     change).
 package bonjour
-
-import (
-	"context"
-	"fmt"
-
-	"github.com/brutella/dnssd"
-)
 
 // ServiceType is the Bonjour service this rail advertises and browses.
 const ServiceType = "_rook-link._tcp."
@@ -35,49 +38,11 @@ type Info struct {
 	ProtocolVersion string
 }
 
-// Advertiser is one running advertisement.
-type Advertiser struct {
-	cancel context.CancelFunc
-	done   chan struct{}
-}
-
-// Advertise starts answering for the service until Stop (or ctx ends).
-func Advertise(ctx context.Context, info Info) (*Advertiser, error) {
-	cfg := dnssd.Config{
-		Name: info.Name,
-		Type: ServiceType,
-		Text: map[string]string{
-			"v":   "1",
-			"hid": info.HostID,
-			"td":  info.TrustDomainID,
-			"pv":  info.ProtocolVersion,
-		},
-		Port: info.Port,
+func (i Info) txt() map[string]string {
+	return map[string]string{
+		"v":   "1",
+		"hid": i.HostID,
+		"td":  i.TrustDomainID,
+		"pv":  i.ProtocolVersion,
 	}
-	sv, err := dnssd.NewService(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("bonjour: %w", err)
-	}
-	rp, err := dnssd.NewResponder()
-	if err != nil {
-		return nil, fmt.Errorf("bonjour: %w", err)
-	}
-	if _, err := rp.Add(sv); err != nil {
-		return nil, fmt.Errorf("bonjour: %w", err)
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	a := &Advertiser{cancel: cancel, done: make(chan struct{})}
-	go func() {
-		defer close(a.done)
-		// Respond blocks until ctx ends; its error at shutdown is the
-		// context's, not news.
-		_ = rp.Respond(ctx)
-	}()
-	return a, nil
-}
-
-// Stop withdraws the advertisement and waits for the responder to end.
-func (a *Advertiser) Stop() {
-	a.cancel()
-	<-a.done
 }
