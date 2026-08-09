@@ -101,8 +101,11 @@ func (s *Server) Handler() http.Handler {
 
 // Publish makes a snapshot current and fans it out to watchers. The
 // embedding host calls this on its own cadence; the seq lets any
-// surface collapse races to newest-wins.
+// surface collapse races to newest-wins. The host's identity is
+// stamped here — the embedder supplies machine truth, the server
+// supplies who the machine IS.
 func (s *Server) Publish(status projection.Status) uint64 {
+	status.HostID = s.id.HostID()
 	return s.hub.publish(status, s.now())
 }
 

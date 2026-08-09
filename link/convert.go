@@ -18,6 +18,7 @@ func statusToProto(s projection.Status, at time.Time) *linkv1.Status {
 	out := &linkv1.Status{
 		Hostname:    s.Hostname,
 		RookVersion: s.RookVersion,
+		HostId:      s.HostID,
 	}
 	if !at.IsZero() {
 		out.At = timestamppb.New(at)
@@ -65,6 +66,7 @@ func statusFromProto(p *linkv1.Status) projection.Status {
 	s := projection.Status{
 		Hostname:    p.Hostname,
 		RookVersion: p.RookVersion,
+		HostID:      p.HostId,
 	}
 	for _, pw := range p.Workspaces {
 		w := projection.Workspace{

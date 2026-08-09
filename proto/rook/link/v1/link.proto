@@ -254,6 +254,11 @@ message Status {
   repeated Workspace workspaces = 3; // ≤100
   // When the host produced this snapshot.
   google.protobuf.Timestamp at = 4;
+  // The host's durable identity (the same id the QR and Bonjour TXT
+  // carry). It rides EVERY rail so a surface seeing this machine
+  // twice — cloud and direct — can prove both are one machine and
+  // collapse them. Hostnames are display; this is identity.
+  string host_id = 5;
 }
 
 message Workspace {

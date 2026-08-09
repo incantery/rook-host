@@ -1240,7 +1240,12 @@ type Status struct {
 	RookVersion string                 `protobuf:"bytes,2,opt,name=rook_version,json=rookVersion,proto3" json:"rook_version,omitempty"`
 	Workspaces  []*Workspace           `protobuf:"bytes,3,rep,name=workspaces,proto3" json:"workspaces,omitempty"` // ≤100
 	// When the host produced this snapshot.
-	At            *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=at,proto3" json:"at,omitempty"`
+	At *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=at,proto3" json:"at,omitempty"`
+	// The host's durable identity (the same id the QR and Bonjour TXT
+	// carry). It rides EVERY rail so a surface seeing this machine
+	// twice — cloud and direct — can prove both are one machine and
+	// collapse them. Hostnames are display; this is identity.
+	HostId        string `protobuf:"bytes,5,opt,name=host_id,json=hostId,proto3" json:"host_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1301,6 +1306,13 @@ func (x *Status) GetAt() *timestamppb.Timestamp {
 		return x.At
 	}
 	return nil
+}
+
+func (x *Status) GetHostId() string {
+	if x != nil {
+		return x.HostId
+	}
+	return ""
 }
 
 type Workspace struct {
@@ -1625,14 +1637,15 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"\n" +
 	"command_id\x18\x01 \x01(\tR\tcommandId\x12;\n" +
 	"\vdisposition\x18\x02 \x01(\x0e2\x19.rook.link.v1.DispositionR\vdisposition\x12\x12\n" +
-	"\x04note\x18\x03 \x01(\tR\x04note\"\xac\x01\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\"\xc5\x01\n" +
 	"\x06Status\x12\x1a\n" +
 	"\bhostname\x18\x01 \x01(\tR\bhostname\x12!\n" +
 	"\frook_version\x18\x02 \x01(\tR\vrookVersion\x127\n" +
 	"\n" +
 	"workspaces\x18\x03 \x03(\v2\x17.rook.link.v1.WorkspaceR\n" +
 	"workspaces\x12*\n" +
-	"\x02at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\x82\x01\n" +
+	"\x02at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x17\n" +
+	"\ahost_id\x18\x05 \x01(\tR\x06hostId\"\x82\x01\n" +
 	"\tWorkspace\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1c\n" +

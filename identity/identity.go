@@ -92,9 +92,13 @@ func PinSPKI(cert *x509.Certificate) string {
 }
 
 // stateFile is the on-disk shape. The Ed25519 key travels as its seed;
-// the TLS pair as PEM.
+// the TLS pair as PEM. HostID is derivable from the seed and stored
+// anyway — denormalized so a sibling process (the cloud bridge, say)
+// can learn who this machine is with a JSON read instead of a key
+// derivation. The loader never trusts it; it re-derives.
 type stateFile struct {
 	Version       int       `json:"version"`
+	HostID        string    `json:"hostId,omitempty"`
 	HostSeed      string    `json:"hostSeed"` // base64 of the 32-byte Ed25519 seed
 	TLSCertPEM    string    `json:"tlsCertPem"`
 	TLSKeyPEM     string    `json:"tlsKeyPem"`
@@ -164,6 +168,7 @@ func create(path string) (*Identity, error) {
 
 	f := stateFile{
 		Version:       1,
+		HostID:        hostID,
 		HostSeed:      base64.StdEncoding.EncodeToString(priv.Seed()),
 		TLSCertPEM:    string(certPEM),
 		TLSKeyPEM:     string(keyPEM),

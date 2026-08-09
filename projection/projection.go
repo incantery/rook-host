@@ -130,9 +130,15 @@ func fnv8(s string) string {
 // is no history here, deliberately; this is "what is happening now", and
 // the event-sourced version of this feature is a different, larger thing.
 type Status struct {
-	Hostname    string      `bson:"hostname,omitempty" json:"hostname,omitempty"`
-	RookVersion string      `bson:"rookVersion,omitempty" json:"rookVersion,omitempty"`
-	Workspaces  []Workspace `bson:"workspaces,omitempty" json:"workspaces,omitempty"`
+	Hostname    string `bson:"hostname,omitempty" json:"hostname,omitempty"`
+	RookVersion string `bson:"rookVersion,omitempty" json:"rookVersion,omitempty"`
+	// HostID is the machine's durable link identity
+	// (identity.HostIDFor) when the machine has one. It rides EVERY
+	// rail so a surface seeing this machine twice — once via cloud,
+	// once via direct link — can prove both are one machine and
+	// collapse them. Hostnames are display; this is identity.
+	HostID     string      `bson:"hostId,omitempty" json:"hostId,omitempty"`
+	Workspaces []Workspace `bson:"workspaces,omitempty" json:"workspaces,omitempty"`
 }
 
 type Workspace struct {
@@ -191,6 +197,7 @@ func (s *Status) Clamp() {
 	)
 	s.Hostname = clip(s.Hostname, maxShort)
 	s.RookVersion = clip(s.RookVersion, maxShort)
+	s.HostID = clip(s.HostID, MaxAskIDLen)
 	if len(s.Workspaces) > maxWorkspaces {
 		s.Workspaces = s.Workspaces[:maxWorkspaces]
 	}

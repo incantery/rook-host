@@ -32,6 +32,7 @@ func randomStatus(rng *rand.Rand) projection.Status {
 	s := projection.Status{
 		Hostname:    randStr(rng, 12),
 		RookVersion: randStr(rng, 8),
+		HostID:      randStr(rng, 26),
 	}
 	for w := 0; w < rng.Intn(4); w++ {
 		ws := projection.Workspace{
