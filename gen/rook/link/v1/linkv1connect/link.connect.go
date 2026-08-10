@@ -81,6 +81,8 @@ const (
 	// LinkServiceSubmitCommandProcedure is the fully-qualified name of the LinkService's SubmitCommand
 	// RPC.
 	LinkServiceSubmitCommandProcedure = "/rook.link.v1.LinkService/SubmitCommand"
+	// LinkServiceWatchPaneProcedure is the fully-qualified name of the LinkService's WatchPane RPC.
+	LinkServiceWatchPaneProcedure = "/rook.link.v1.LinkService/WatchPane"
 )
 
 // HostServiceClient is a client for the rook.link.v1.HostService service.
@@ -278,6 +280,15 @@ type LinkServiceClient interface {
 	// executes synchronously through its local gates, and reports what
 	// actually happened. cap: agent.command
 	SubmitCommand(context.Context, *connect.Request[v1.SubmitCommandRequest]) (*connect.Response[v1.SubmitCommandResponse], error)
+	// WatchPane streams display-ready cell grids for one session's pane.
+	// Pane contents ride the direct link ONLY — this stream has no cloud
+	// counterpart, deliberately. The session id is the same handle the
+	// projection reports (Agent.id); the host resolves it to a pane per
+	// frame, and a session whose pane cannot be resolved right now keeps
+	// the stream open on heartbeats — frames resume when it reappears.
+	// Frames are snapshots, latest-wins coalesced, no history and no
+	// scrollback. cap: session.read
+	WatchPane(context.Context, *connect.Request[v1.WatchPaneRequest]) (*connect.ServerStreamForClient[v1.WatchPaneResponse], error)
 }
 
 // NewLinkServiceClient constructs a client for the rook.link.v1.LinkService service. By default, it
@@ -315,6 +326,12 @@ func NewLinkServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(linkServiceMethods.ByName("SubmitCommand")),
 			connect.WithClientOptions(opts...),
 		),
+		watchPane: connect.NewClient[v1.WatchPaneRequest, v1.WatchPaneResponse](
+			httpClient,
+			baseURL+LinkServiceWatchPaneProcedure,
+			connect.WithSchema(linkServiceMethods.ByName("WatchPane")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -324,6 +341,7 @@ type linkServiceClient struct {
 	watchStatus   *connect.Client[v1.WatchStatusRequest, v1.WatchStatusResponse]
 	submitAnswer  *connect.Client[v1.SubmitAnswerRequest, v1.SubmitAnswerResponse]
 	submitCommand *connect.Client[v1.SubmitCommandRequest, v1.SubmitCommandResponse]
+	watchPane     *connect.Client[v1.WatchPaneRequest, v1.WatchPaneResponse]
 }
 
 // GetStatus calls rook.link.v1.LinkService.GetStatus.
@@ -344,6 +362,11 @@ func (c *linkServiceClient) SubmitAnswer(ctx context.Context, req *connect.Reque
 // SubmitCommand calls rook.link.v1.LinkService.SubmitCommand.
 func (c *linkServiceClient) SubmitCommand(ctx context.Context, req *connect.Request[v1.SubmitCommandRequest]) (*connect.Response[v1.SubmitCommandResponse], error) {
 	return c.submitCommand.CallUnary(ctx, req)
+}
+
+// WatchPane calls rook.link.v1.LinkService.WatchPane.
+func (c *linkServiceClient) WatchPane(ctx context.Context, req *connect.Request[v1.WatchPaneRequest]) (*connect.ServerStreamForClient[v1.WatchPaneResponse], error) {
+	return c.watchPane.CallServerStream(ctx, req)
 }
 
 // LinkServiceHandler is an implementation of the rook.link.v1.LinkService service.
@@ -367,6 +390,15 @@ type LinkServiceHandler interface {
 	// executes synchronously through its local gates, and reports what
 	// actually happened. cap: agent.command
 	SubmitCommand(context.Context, *connect.Request[v1.SubmitCommandRequest]) (*connect.Response[v1.SubmitCommandResponse], error)
+	// WatchPane streams display-ready cell grids for one session's pane.
+	// Pane contents ride the direct link ONLY — this stream has no cloud
+	// counterpart, deliberately. The session id is the same handle the
+	// projection reports (Agent.id); the host resolves it to a pane per
+	// frame, and a session whose pane cannot be resolved right now keeps
+	// the stream open on heartbeats — frames resume when it reappears.
+	// Frames are snapshots, latest-wins coalesced, no history and no
+	// scrollback. cap: session.read
+	WatchPane(context.Context, *connect.Request[v1.WatchPaneRequest], *connect.ServerStream[v1.WatchPaneResponse]) error
 }
 
 // NewLinkServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -400,6 +432,12 @@ func NewLinkServiceHandler(svc LinkServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(linkServiceMethods.ByName("SubmitCommand")),
 		connect.WithHandlerOptions(opts...),
 	)
+	linkServiceWatchPaneHandler := connect.NewServerStreamHandler(
+		LinkServiceWatchPaneProcedure,
+		svc.WatchPane,
+		connect.WithSchema(linkServiceMethods.ByName("WatchPane")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/rook.link.v1.LinkService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case LinkServiceGetStatusProcedure:
@@ -410,6 +448,8 @@ func NewLinkServiceHandler(svc LinkServiceHandler, opts ...connect.HandlerOption
 			linkServiceSubmitAnswerHandler.ServeHTTP(w, r)
 		case LinkServiceSubmitCommandProcedure:
 			linkServiceSubmitCommandHandler.ServeHTTP(w, r)
+		case LinkServiceWatchPaneProcedure:
+			linkServiceWatchPaneHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -433,4 +473,8 @@ func (UnimplementedLinkServiceHandler) SubmitAnswer(context.Context, *connect.Re
 
 func (UnimplementedLinkServiceHandler) SubmitCommand(context.Context, *connect.Request[v1.SubmitCommandRequest]) (*connect.Response[v1.SubmitCommandResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rook.link.v1.LinkService.SubmitCommand is not implemented"))
+}
+
+func (UnimplementedLinkServiceHandler) WatchPane(context.Context, *connect.Request[v1.WatchPaneRequest], *connect.ServerStream[v1.WatchPaneResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("rook.link.v1.LinkService.WatchPane is not implemented"))
 }

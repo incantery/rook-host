@@ -104,6 +104,57 @@ func statusFromProto(p *linkv1.Status) projection.Status {
 	return s
 }
 
+func paneToProto(f projection.PaneFrame) *linkv1.PaneFrame {
+	out := &linkv1.PaneFrame{
+		Cols:          uint32(f.Cols),
+		Rows:          uint32(f.Rows),
+		CursorX:       uint32(f.CursorX),
+		CursorY:       uint32(f.CursorY),
+		CursorVisible: f.CursorVisible,
+	}
+	for _, r := range f.Lines {
+		pr := &linkv1.PaneRow{Text: r.Text}
+		for _, run := range r.Runs {
+			pr.Runs = append(pr.Runs, &linkv1.StyleRun{
+				Start: run.Start,
+				Len:   run.Len,
+				Fg:    run.FG,
+				Bg:    run.BG,
+				Attrs: run.Attrs,
+			})
+		}
+		out.Lines = append(out.Lines, pr)
+	}
+	return out
+}
+
+func paneFromProto(p *linkv1.PaneFrame) projection.PaneFrame {
+	if p == nil {
+		return projection.PaneFrame{}
+	}
+	f := projection.PaneFrame{
+		Cols:          int(p.Cols),
+		Rows:          int(p.Rows),
+		CursorX:       int(p.CursorX),
+		CursorY:       int(p.CursorY),
+		CursorVisible: p.CursorVisible,
+	}
+	for _, pr := range p.Lines {
+		r := projection.PaneRow{Text: pr.Text}
+		for _, run := range pr.Runs {
+			r.Runs = append(r.Runs, projection.StyleRun{
+				Start: run.Start,
+				Len:   run.Len,
+				FG:    run.Fg,
+				BG:    run.Bg,
+				Attrs: run.Attrs,
+			})
+		}
+		f.Lines = append(f.Lines, r)
+	}
+	return f
+}
+
 // The state strings are the projection's canon ("working" |
 // "needs_input" | "quiet"); anything else — an old host, a new state
 // this build has not learned — crosses the wire as UNSPECIFIED rather

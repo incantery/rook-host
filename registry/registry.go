@@ -31,17 +31,20 @@ const (
 	CapAgentAnswer = "agent.answer"
 	// CapAgentCommand: send allowlisted commands (compact/resume/spawn).
 	CapAgentCommand = "agent.command"
+	// CapSessionRead: watch a session's live pane contents (WatchPane).
+	// Direct link only — pane frames never ride the cloud rail.
+	CapSessionRead = "session.read"
 )
 
 // DefaultCapabilities is the V1 pairing grant: everything. The
 // registry stores per-device sets and the interceptor enforces them
 // from day one, so tightening is a policy decision, not a protocol
 // change.
-var DefaultCapabilities = []string{CapStatusRead, CapAgentAnswer, CapAgentCommand}
+var DefaultCapabilities = []string{CapStatusRead, CapAgentAnswer, CapAgentCommand, CapSessionRead}
 
 // KnownCapability reports whether s is in the vocabulary at all.
 func KnownCapability(s string) bool {
-	return s == CapStatusRead || s == CapAgentAnswer || s == CapAgentCommand
+	return s == CapStatusRead || s == CapAgentAnswer || s == CapAgentCommand || s == CapSessionRead
 }
 
 var (

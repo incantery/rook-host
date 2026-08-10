@@ -36,6 +36,9 @@ type Options struct {
 	// HostName is the user-visible name in GetHostInfo ("Seth's MacBook
 	// Pro"). Display only.
 	HostName string
+	// Panes produces live pane frames for watched sessions. nil =
+	// WatchPane answers Unimplemented; everything else still works.
+	Panes PaneSource
 	// RequestedTTL for heartbeats on WatchStatus. Well under the ~100s
 	// idle cutoff proxies apply to a silent body. 0 = 25s.
 	Heartbeat time.Duration
@@ -56,9 +59,10 @@ type Server struct {
 	heartbeat time.Duration
 	now       func() time.Time
 
-	hub    *hub
-	tokens *tokens
-	nonces *nonces
+	hub     *hub
+	paneHub *paneHub
+	tokens  *tokens
+	nonces  *nonces
 }
 
 // NewServer wires a Server. Panics on missing requirements — this is
@@ -85,6 +89,7 @@ func NewServer(o Options) *Server {
 		heartbeat: o.Heartbeat,
 		now:       o.Now,
 		hub:       newHub(),
+		paneHub:   newPaneHub(o.Panes),
 		tokens:    newTokens(),
 		nonces:    newNonces(),
 	}
@@ -109,6 +114,13 @@ func (s *Server) Publish(status projection.Status) uint64 {
 	return s.hub.publish(status, s.now())
 }
 
+// PublishPane makes a frame current for sessionID and fans it out to
+// its watchers. The pane source calls this on its own cadence; frames
+// for unwatched sessions are dropped.
+func (s *Server) PublishPane(sessionID string, f projection.PaneFrame) {
+	s.paneHub.publish(sessionID, f)
+}
+
 // RevokeDevice is the whole revocation, in one breath: tombstone in
 // the registry, every session token dropped, every open stream
 // cancelled. The device's next RPC — and its current ones — fail.
@@ -118,6 +130,7 @@ func (s *Server) RevokeDevice(deviceID string) error {
 	}
 	s.tokens.dropDevice(deviceID)
 	s.hub.dropDevice(deviceID)
+	s.paneHub.dropDevice(deviceID)
 	return nil
 }
 
@@ -176,6 +189,7 @@ func (s *Server) Pair(ctx context.Context, req *connect.Request[linkv1.PairReque
 	// anyway.
 	s.tokens.dropDevice(deviceID)
 	s.hub.dropDevice(deviceID)
+	s.paneHub.dropDevice(deviceID)
 	granted, _ := s.reg.Get(deviceID)
 	return connect.NewResponse(&linkv1.PairResponse{
 		DeviceId:            deviceID,
@@ -301,6 +315,66 @@ func (s *Server) WatchStatus(ctx context.Context, req *connect.Request[linkv1.Wa
 		case <-ticker.C:
 			if err := stream.Send(&linkv1.WatchStatusResponse{
 				Kind: linkv1.WatchStatusResponse_KIND_HEARTBEAT,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (s *Server) WatchPane(ctx context.Context, req *connect.Request[linkv1.WatchPaneRequest], stream *connect.ServerStream[linkv1.WatchPaneResponse]) error {
+	deviceID, err := s.authorize(req.Header(), registry.CapSessionRead)
+	if err != nil {
+		return err
+	}
+	if s.paneHub.source == nil {
+		return connect.NewError(connect.CodeUnimplemented, errors.New("this host does not stream panes"))
+	}
+	sessionID := strings.TrimSpace(req.Msg.SessionId)
+	if sessionID == "" || len(sessionID) > projection.MaxAskIDLen {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("watch needs a session id (≤128 bytes)"))
+	}
+	sub, opening, err := s.paneHub.subscribe(deviceID, sessionID)
+	if err != nil {
+		return connect.NewError(connect.CodeUnavailable, err)
+	}
+	defer s.paneHub.unsubscribe(sessionID, sub)
+
+	// The opening frame, when one is retained: a second watcher joins
+	// on current truth instead of waiting out a quiet pane. A session
+	// with no frame yet — or none resolvable — opens on heartbeats;
+	// frames arrive when the pane produces one.
+	if opening != nil {
+		if err := stream.Send(&linkv1.WatchPaneResponse{
+			Kind:  linkv1.WatchPaneResponse_KIND_SNAPSHOT,
+			Frame: paneToProto(opening.frame),
+			Seq:   opening.seq,
+		}); err != nil {
+			return err
+		}
+	}
+
+	ticker := time.NewTicker(s.heartbeat)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-sub.gone:
+			// Revoked mid-stream. Name the reason; the surface should
+			// stop reconnecting.
+			return connect.NewError(connect.CodePermissionDenied, errors.New("device revoked"))
+		case f := <-sub.updates:
+			if err := stream.Send(&linkv1.WatchPaneResponse{
+				Kind:  linkv1.WatchPaneResponse_KIND_SNAPSHOT,
+				Frame: paneToProto(f.frame),
+				Seq:   f.seq,
+			}); err != nil {
+				return err
+			}
+		case <-ticker.C:
+			if err := stream.Send(&linkv1.WatchPaneResponse{
+				Kind: linkv1.WatchPaneResponse_KIND_HEARTBEAT,
 			}); err != nil {
 				return err
 			}

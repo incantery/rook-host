@@ -83,6 +83,44 @@ func randStr(rng *rand.Rand, max int) string {
 	return b.String()
 }
 
+// Same property for pane frames: any clamped frame survives the wire
+// shape unchanged.
+func TestPaneFrameProtoRoundTrip(t *testing.T) {
+	rng := rand.New(rand.NewSource(43))
+	for i := 0; i < 200; i++ {
+		f := randomPaneFrame(rng)
+		f.Clamp()
+		got := paneFromProto(paneToProto(f))
+		if !reflect.DeepEqual(f, got) {
+			t.Fatalf("pane round trip diverged (case %d):\n in: %+v\nout: %+v", i, f, got)
+		}
+	}
+}
+
+func randomPaneFrame(rng *rand.Rand) projection.PaneFrame {
+	f := projection.PaneFrame{
+		Cols:          rng.Intn(200),
+		Rows:          rng.Intn(60),
+		CursorX:       rng.Intn(200),
+		CursorY:       rng.Intn(60),
+		CursorVisible: rng.Intn(2) == 0,
+	}
+	for r := 0; r < rng.Intn(5); r++ {
+		row := projection.PaneRow{Text: randStr(rng, 80)}
+		for s := 0; s < rng.Intn(4); s++ {
+			row.Runs = append(row.Runs, projection.StyleRun{
+				Start: rng.Uint32() % 200,
+				Len:   rng.Uint32() % 200,
+				FG:    rng.Uint32() % 0x1000000,
+				BG:    rng.Uint32() % 0x1000000,
+				Attrs: rng.Uint32() % 32,
+			})
+		}
+		f.Lines = append(f.Lines, row)
+	}
+	return f
+}
+
 // Unknown agent states cross the wire as UNSPECIFIED, never invented.
 func TestUnknownStateBecomesUnspecified(t *testing.T) {
 	s := projection.Status{Workspaces: []projection.Workspace{{

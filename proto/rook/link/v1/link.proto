@@ -168,6 +168,16 @@ service LinkService {
   // executes synchronously through its local gates, and reports what
   // actually happened. cap: agent.command
   rpc SubmitCommand(SubmitCommandRequest) returns (SubmitCommandResponse);
+
+  // WatchPane streams display-ready cell grids for one session's pane.
+  // Pane contents ride the direct link ONLY — this stream has no cloud
+  // counterpart, deliberately. The session id is the same handle the
+  // projection reports (Agent.id); the host resolves it to a pane per
+  // frame, and a session whose pane cannot be resolved right now keeps
+  // the stream open on heartbeats — frames resume when it reappears.
+  // Frames are snapshots, latest-wins coalesced, no history and no
+  // scrollback. cap: session.read
+  rpc WatchPane(WatchPaneRequest) returns (stream WatchPaneResponse);
 }
 
 message GetStatusRequest {}
@@ -219,6 +229,59 @@ message SubmitCommandResponse {
   string command_id = 1;
   Disposition disposition = 2;
   string note = 3;
+}
+
+message WatchPaneRequest {
+  // The machine's session id (projection Agent.id) — the only handle
+  // the surface holds. Never a pane number; panes are the host's
+  // private geometry.
+  string session_id = 1;
+}
+
+message WatchPaneResponse {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_SNAPSHOT = 1;
+    KIND_HEARTBEAT = 2;
+  }
+  Kind kind = 1;
+  PaneFrame frame = 2; // set when KIND_SNAPSHOT
+  // Monotonic per watched session. A surface holding seq N drops any
+  // frame ≤ N — reconnects and races collapse to "newest wins".
+  uint64 seq = 3;
+}
+
+// PaneFrame is one display-ready snapshot of a pane's viewport. The
+// host's terminal emulator has already resolved palette indices,
+// inverse, and faint into final RGB — the surface is a dumb grid view
+// with no palette table and no VT parser. Bounds (enforced by Clamp()
+// before publish): cols ≤ 500, rows ≤ 200.
+message PaneFrame {
+  uint32 cols = 1;
+  uint32 rows = 2;
+  uint32 cursor_x = 3;
+  uint32 cursor_y = 4;
+  bool cursor_visible = 5;
+  repeated PaneRow lines = 6; // one per row, top to bottom
+}
+
+// PaneRow is one row: the full text plus style runs over it. Runs are
+// keyed by CELL COLUMN, not byte offset — text is what the cells spell,
+// runs are how they are painted.
+message PaneRow {
+  string text = 1;
+  repeated StyleRun runs = 2; // ≤ cols
+}
+
+// StyleRun paints cells [start, start+len) of its row. fg and bg are
+// final 0xRRGGBB; attrs is a bitmask: 1 bold, 2 italic, 4 underline,
+// 16 strikethrough.
+message StyleRun {
+  uint32 start = 1;
+  uint32 len = 2;
+  uint32 fg = 3;
+  uint32 bg = 4;
+  uint32 attrs = 5;
 }
 
 enum CommandKind {

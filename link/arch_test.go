@@ -59,6 +59,36 @@ func (f *fakeExec) Execute(_ context.Context, c projection.Command) link.Outcome
 	return link.Outcome{Disposition: link.Delivered}
 }
 
+// fakePanes records the watcher-count edges the hub drives.
+type fakePanes struct {
+	mu     sync.Mutex
+	opens  map[string]int
+	closes map[string]int
+}
+
+func newFakePanes() *fakePanes {
+	return &fakePanes{opens: map[string]int{}, closes: map[string]int{}}
+}
+
+func (f *fakePanes) Open(sessionID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.opens[sessionID]++
+	return nil
+}
+
+func (f *fakePanes) Close(sessionID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.closes[sessionID]++
+}
+
+func (f *fakePanes) counts(sessionID string) (opens, closes int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.opens[sessionID], f.closes[sessionID]
+}
+
 // rig is one host under test plus everything a test pokes at.
 type rig struct {
 	t      *testing.T
@@ -67,6 +97,7 @@ type rig struct {
 	reg    *registry.Registry
 	pairs  *pairing.Manager
 	exec   *fakeExec
+	panes  *fakePanes
 	ts     *httptest.Server
 	now    time.Time
 	nowMu  sync.Mutex
@@ -85,12 +116,13 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := &rig{t: t, id: id, reg: reg, pairs: &pairing.Manager{}, exec: newFakeExec(), now: time.Now()}
+	r := &rig{t: t, id: id, reg: reg, pairs: &pairing.Manager{}, exec: newFakeExec(), panes: newFakePanes(), now: time.Now()}
 	r.srv = link.NewServer(link.Options{
 		Identity:  id,
 		Registry:  reg,
 		Pairing:   r.pairs,
 		Executor:  r.exec,
+		Panes:     r.panes,
 		HostName:  "test host",
 		Heartbeat: 50 * time.Millisecond,
 		Now: func() time.Time {
@@ -527,6 +559,147 @@ func TestCommandIDsMatchTheCloudRail(t *testing.T) {
 	if code(err) != connect.CodeInvalidArgument {
 		t.Fatalf("kindless command: %v", err)
 	}
+}
+
+// --- Pane streaming: capability gate, source edges, revocation ---------
+
+// waitFor polls until cond holds or the deadline passes — the bridge
+// between a client call returning and the server's stream goroutine
+// actually reaching the hub.
+func waitFor(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s", what)
+}
+
+func TestPaneStreamRequiresSessionRead(t *testing.T) {
+	r := newRig(t)
+	d := r.pair(registry.CapStatusRead) // reader, but not of panes
+	r.authenticate(d)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := d.link.WatchPane(ctx, connect.NewRequest(&linkv1.WatchPaneRequest{SessionId: "sess-1"}))
+	if err == nil {
+		for stream.Receive() {
+		}
+		err = stream.Err()
+	}
+	if code(err) != connect.CodePermissionDenied {
+		t.Fatalf("pane stream without session.read: %v", err)
+	}
+	if opens, _ := r.panes.counts("sess-1"); opens != 0 {
+		t.Fatal("an unauthorized watch reached the pane source")
+	}
+}
+
+func TestPaneStreamFramesAndSourceEdges(t *testing.T) {
+	r := newRig(t)
+	d := r.pair()
+	r.authenticate(d)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream, err := d.link.WatchPane(ctx, connect.NewRequest(&linkv1.WatchPaneRequest{SessionId: "sess-1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// First watcher opens the source.
+	waitFor(t, "source open", func() bool { opens, _ := r.panes.counts("sess-1"); return opens == 1 })
+
+	r.srv.PublishPane("sess-1", projection.PaneFrame{
+		Cols: 4, Rows: 1, CursorX: 2, CursorVisible: true,
+		Lines: []projection.PaneRow{{
+			Text: "hi",
+			Runs: []projection.StyleRun{{Start: 0, Len: 2, FG: 0xFFFFFF, BG: 0x102030, Attrs: 1}},
+		}},
+	})
+
+	var got *linkv1.WatchPaneResponse
+	for stream.Receive() {
+		if stream.Msg().Kind == linkv1.WatchPaneResponse_KIND_SNAPSHOT {
+			got = stream.Msg()
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("stream ended before a frame: %v", stream.Err())
+	}
+	if got.Seq != 1 || got.Frame.Cols != 4 || got.Frame.CursorX != 2 || !got.Frame.CursorVisible {
+		t.Fatalf("frame mangled: %+v", got.Frame)
+	}
+	if row := got.Frame.Lines[0]; row.Text != "hi" ||
+		row.Runs[0].Fg != 0xFFFFFF || row.Runs[0].Bg != 0x102030 || row.Runs[0].Attrs != 1 {
+		t.Fatalf("row mangled: %+v", row)
+	}
+
+	// Last watcher closes the source.
+	cancel()
+	waitFor(t, "source close", func() bool { _, closes := r.panes.counts("sess-1"); return closes == 1 })
+}
+
+func TestRevocationKillsPaneStream(t *testing.T) {
+	r := newRig(t)
+	d := r.pair()
+	r.authenticate(d)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := d.link.WatchPane(ctx, connect.NewRequest(&linkv1.WatchPaneRequest{SessionId: "sess-1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "source open", func() bool { opens, _ := r.panes.counts("sess-1"); return opens == 1 })
+
+	if err := r.srv.RevokeDevice(d.id); err != nil {
+		t.Fatal(err)
+	}
+	for stream.Receive() {
+		// drain heartbeats until the error lands
+	}
+	if code(stream.Err()) != connect.CodePermissionDenied {
+		t.Fatalf("revoked pane stream ended with: %v", stream.Err())
+	}
+	// The revoked watcher was the last one: the source is closed.
+	waitFor(t, "source close", func() bool { _, closes := r.panes.counts("sess-1"); return closes == 1 })
+}
+
+func TestRepairDropsPaneStreams(t *testing.T) {
+	r := newRig(t)
+	d := r.pair()
+	r.authenticate(d)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := d.link.WatchPane(ctx, connect.NewRequest(&linkv1.WatchPaneRequest{SessionId: "sess-1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "source open", func() bool { opens, _ := r.panes.counts("sess-1"); return opens == 1 })
+
+	// Re-pair the same key through a fresh window: streams minted under
+	// the old registration end with it.
+	secret, _ := r.pairs.Open(r.now)
+	if _, err := r.host.Pair(context.Background(), connect.NewRequest(&linkv1.PairRequest{
+		ProtocolVersion: link.ProtocolVersion,
+		PairingSecret:   secret,
+		DevicePublicKey: d.pub,
+		Proof:           identity.SignPairProof(d.key, r.id.HostID(), secret, d.pub),
+	})); err != nil {
+		t.Fatalf("re-pair: %v", err)
+	}
+	for stream.Receive() {
+	}
+	if code(stream.Err()) != connect.CodePermissionDenied {
+		t.Fatalf("pre-re-pair pane stream survived: %v", stream.Err())
+	}
+	waitFor(t, "source close", func() bool { _, closes := r.panes.counts("sess-1"); return closes == 1 })
 }
 
 // --- Challenge/nonce security ------------------------------------------

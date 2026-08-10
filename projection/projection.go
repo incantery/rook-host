@@ -6,8 +6,9 @@
 // a single definition.
 //
 // The detail level is a decided line, not an accident: states, titles,
-// and pending ask text come up; foreground commands, terminal contents,
-// and anything else from the machine stay home.
+// and pending ask text come up; foreground commands and anything else
+// from the machine stay home — and terminal contents (PaneFrame) ride
+// the direct link only, never the cloud rail.
 //
 // The bson tags are rook-cloud's storage shape for these values and are
 // inert everywhere else. They stay because dropping them would silently
@@ -237,6 +238,75 @@ func (s *Status) Clamp() {
 					a.Digest = nil
 				}
 			}
+		}
+	}
+}
+
+// PaneFrame is one display-ready snapshot of a pane's viewport — the
+// machine's own terminal emulator has already resolved palette
+// indices, inverse, and faint into final RGB, so a surface renders it
+// as a dumb grid with no palette table and no VT parser.
+//
+// Pane frames are TRANSIENT and ride the direct link only: no bson
+// tags, deliberately — nothing here is ever persisted, and the cloud
+// rail never carries one.
+type PaneFrame struct {
+	Cols          int       `json:"cols"`
+	Rows          int       `json:"rows"`
+	CursorX       int       `json:"cursorX"`
+	CursorY       int       `json:"cursorY"`
+	CursorVisible bool      `json:"cursorVisible"`
+	Lines         []PaneRow `json:"lines,omitempty"` // one per row, top to bottom
+}
+
+// PaneRow is one row: the full text plus style runs over it. Runs are
+// keyed by CELL COLUMN, not byte offset — text is what the cells
+// spell, runs are how they are painted.
+type PaneRow struct {
+	Text string     `json:"t"`
+	Runs []StyleRun `json:"s,omitempty"`
+}
+
+// StyleRun paints cells [Start, Start+Len) of its row. FG and BG are
+// final 0xRRGGBB; Attrs is a bitmask: 1 bold, 2 italic, 4 underline,
+// 16 strikethrough.
+type StyleRun struct {
+	Start uint32 `json:"start"`
+	Len   uint32 `json:"len"`
+	FG    uint32 `json:"fg"`
+	BG    uint32 `json:"bg"`
+	Attrs uint32 `json:"attrs"`
+}
+
+// Clamp caps every unbounded dimension of a frame in place, the same
+// discipline Status.Clamp applies: a misbehaving publisher cannot grow
+// a fan-out frame without limit.
+func (f *PaneFrame) Clamp() {
+	const (
+		maxCols    = 500
+		maxRows    = 200
+		maxRowText = maxCols * 4 // maxCols runes at ≤4 bytes each
+	)
+	if f.Cols < 0 || f.Cols > maxCols {
+		f.Cols = maxCols
+	}
+	if f.Rows < 0 || f.Rows > maxRows {
+		f.Rows = maxRows
+	}
+	if f.CursorX < 0 {
+		f.CursorX = 0
+	}
+	if f.CursorY < 0 {
+		f.CursorY = 0
+	}
+	if len(f.Lines) > maxRows {
+		f.Lines = f.Lines[:maxRows]
+	}
+	for i := range f.Lines {
+		r := &f.Lines[i]
+		r.Text = clip(r.Text, maxRowText)
+		if len(r.Runs) > maxCols {
+			r.Runs = r.Runs[:maxCols]
 		}
 	}
 }
