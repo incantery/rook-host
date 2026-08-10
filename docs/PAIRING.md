@@ -127,6 +127,31 @@ drop any frame whose `seq` is not greater than the last rendered) and
 `KIND_HEARTBEAT` frames to ignore. On disconnect, reconnect and rely
 on the opening snapshot; there is no gap replay to ask for.
 
+## Watching a pane
+
+`LinkService.WatchPane(session_id)` (server stream) carries a
+session's live terminal as display-ready cell grids — direct link
+only, per `docs/adr/0004-pane-streaming-direct-only.md`. The contract
+mirrors WatchStatus with two differences worth coding for:
+
+- There may be NO opening frame: a session whose pane the host cannot
+  resolve right now keeps the stream open on `KIND_HEARTBEAT` alone,
+  and frames start when the pane appears. A gap is not an error.
+- `seq` is per watched session and restarts when the session loses its
+  last watcher — reset your horizon per stream, exactly like the
+  reconnect rule for WatchStatus.
+
+Frames are viewport snapshots (no scrollback, no deltas): rows carry
+the full text plus style runs of final `0xRRGGBB` color (the host's
+emulator already resolved palette, inverse, and faint) and an attrs
+bitmask (1 bold, 2 italic, 4 underline, 16 strikethrough). Render
+cells; parse nothing.
+
+The stream needs the `session.read` capability. Devices paired before
+it existed do not gain it retroactively — re-pairing through a fresh
+QR is the upgrade path, and a `permission_denied` close on WatchPane
+(with Challenge still succeeding) is how that state looks on the wire.
+
 ## Submitting actions
 
 - Prefer the link rail whenever connected; fall back to the cloud rail
