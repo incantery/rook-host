@@ -18,6 +18,7 @@ package projection
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -67,11 +68,11 @@ func ValidAnswer(askID, text string) (Answer, error) {
 type Command struct {
 	ID   string `bson:"id" json:"id"`
 	Kind string `bson:"kind" json:"kind"`
-	// SessionID names the target session (compact, resume).
+	// SessionID names the target session (compact, resume, say).
 	SessionID string `bson:"sessionId,omitempty" json:"sessionId,omitempty"`
-	// Workspace and Prompt belong to spawn: a workspace name the
-	// machine itself reported, and the first thing to say to the new
-	// session — typed in through session.send, so it is data there.
+	// Workspace belongs to spawn: a workspace name the machine itself
+	// reported. Prompt belongs to spawn AND say — the text to hand the
+	// session, typed in through session.send, so it is data there.
 	Workspace string    `bson:"workspace,omitempty" json:"workspace,omitempty"`
 	Prompt    string    `bson:"prompt,omitempty" json:"prompt,omitempty"`
 	At        time.Time `bson:"at" json:"at"`
@@ -79,12 +80,12 @@ type Command struct {
 
 // CommandKinds is the allowlist. Growing it is a deliberate act with
 // a review, not a string a client sends.
-var CommandKinds = []string{"compact", "resume", "spawn"}
+var CommandKinds = []string{"compact", "resume", "spawn", "say"}
 
 const MaxCommandPending = 20
 
 var (
-	ErrBadCommand      = errors.New("command needs a known kind and its target: sessionId (≤128 bytes) for compact/resume, workspace (≤200 bytes) and an optional prompt (≤4096 bytes) for spawn")
+	ErrBadCommand      = errors.New("command needs a known kind and its target: sessionId (≤128 bytes) for compact/resume, workspace (≤200 bytes) and an optional prompt (≤4096 bytes) for spawn, sessionId plus prompt for say")
 	ErrCommandConflict = errors.New("that command is already pending, or the outbox is full")
 )
 
@@ -110,6 +111,21 @@ func ValidCommand(kind, sessionID, workspace, prompt string) (Command, error) {
 		return Command{
 			ID: "spawn:" + workspace + ":" + fnv8(prompt), Kind: kind,
 			Workspace: workspace, Prompt: prompt, At: now,
+		}, nil
+	case "say":
+		if sessionID == "" || len(sessionID) > MaxAskIDLen ||
+			prompt == "" || len(prompt) > MaxAnswerLen || workspace != "" {
+			return Command{}, ErrBadCommand
+		}
+		// The key hashes a MINUTE BUCKET alongside the text, unlike
+		// spawn's. A say has no natural once-ness — "continue" today and
+		// "continue" tomorrow are two messages, and a pure text key
+		// would silently swallow the second as a DUPLICATE forever. The
+		// bucket keeps what dedup is FOR (double-taps, a two-rail race)
+		// and lets deliberate repetition through.
+		return Command{
+			ID: "say:" + sessionID + ":" + fnv8(prompt+"@"+strconv.FormatInt(now.Unix()/60, 10)),
+			Kind: kind, SessionID: sessionID, Prompt: prompt, At: now,
 		}, nil
 	}
 	return Command{}, ErrBadCommand

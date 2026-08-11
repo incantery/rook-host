@@ -225,14 +225,16 @@ message SubmitAnswerResponse {
 
 message SubmitCommandRequest {
   CommandKind kind = 1;
-  string session_id = 2; // compact | resume
+  string session_id = 2; // compact | resume | say
   string workspace = 3;  // spawn
-  string prompt = 4;     // spawn, optional — reaches the agent as TYPED TEXT
+  string prompt = 4;     // spawn (optional) | say (required) — reaches the agent as TYPED TEXT
 }
 
 message SubmitCommandResponse {
   // The natural key, echoed: "compact:<session>", "resume:<session>",
-  // "spawn:<workspace>:<fnv8(prompt)>". The same key the cloud rail
+  // "spawn:<workspace>:<fnv8(prompt)>", "say:<session>:<fnv8(prompt@minute)>"
+  // (say folds a minute bucket in — deliberate repetition is two
+  // messages, a double-tap is one). The same key the cloud rail
   // mints for the same instruction — which is exactly why a command
   // arriving over both rails is one command.
   string command_id = 1;
@@ -332,6 +334,11 @@ enum CommandKind {
   COMMAND_KIND_COMPACT = 1;
   COMMAND_KIND_RESUME = 2;
   COMMAND_KIND_SPAWN = 3;
+  // Type a message into an ATTACHED session's pane — the phone talking
+  // to a session that is already open at the keyboard. Refused for
+  // detached sessions (resume is that verb) and delivered as TYPED
+  // TEXT through the same gates as everything else.
+  COMMAND_KIND_SAY = 4;
 }
 
 // Disposition is what actually happened at the keyboard — visible

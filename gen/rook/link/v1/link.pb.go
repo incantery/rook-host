@@ -56,6 +56,11 @@ const (
 	CommandKind_COMMAND_KIND_COMPACT     CommandKind = 1
 	CommandKind_COMMAND_KIND_RESUME      CommandKind = 2
 	CommandKind_COMMAND_KIND_SPAWN       CommandKind = 3
+	// Type a message into an ATTACHED session's pane — the phone talking
+	// to a session that is already open at the keyboard. Refused for
+	// detached sessions (resume is that verb) and delivered as TYPED
+	// TEXT through the same gates as everything else.
+	CommandKind_COMMAND_KIND_SAY CommandKind = 4
 )
 
 // Enum value maps for CommandKind.
@@ -65,12 +70,14 @@ var (
 		1: "COMMAND_KIND_COMPACT",
 		2: "COMMAND_KIND_RESUME",
 		3: "COMMAND_KIND_SPAWN",
+		4: "COMMAND_KIND_SAY",
 	}
 	CommandKind_value = map[string]int32{
 		"COMMAND_KIND_UNSPECIFIED": 0,
 		"COMMAND_KIND_COMPACT":     1,
 		"COMMAND_KIND_RESUME":      2,
 		"COMMAND_KIND_SPAWN":       3,
+		"COMMAND_KIND_SAY":         4,
 	}
 )
 
@@ -1154,9 +1161,9 @@ func (x *SubmitAnswerResponse) GetNote() string {
 type SubmitCommandRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Kind          CommandKind            `protobuf:"varint,1,opt,name=kind,proto3,enum=rook.link.v1.CommandKind" json:"kind,omitempty"`
-	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"` // compact | resume
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"` // compact | resume | say
 	Workspace     string                 `protobuf:"bytes,3,opt,name=workspace,proto3" json:"workspace,omitempty"`                  // spawn
-	Prompt        string                 `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`                        // spawn, optional — reaches the agent as TYPED TEXT
+	Prompt        string                 `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`                        // spawn (optional) | say (required) — reaches the agent as TYPED TEXT
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1222,7 +1229,9 @@ func (x *SubmitCommandRequest) GetPrompt() string {
 type SubmitCommandResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The natural key, echoed: "compact:<session>", "resume:<session>",
-	// "spawn:<workspace>:<fnv8(prompt)>". The same key the cloud rail
+	// "spawn:<workspace>:<fnv8(prompt)>", "say:<session>:<fnv8(prompt@minute)>"
+	// (say folds a minute bucket in — deliberate repetition is two
+	// messages, a double-tap is one). The same key the cloud rail
 	// mints for the same instruction — which is exactly why a command
 	// arriving over both rails is one command.
 	CommandId     string      `protobuf:"bytes,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
@@ -2353,12 +2362,13 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"\vAgentDigest\x12\x1a\n" +
 	"\bheadline\x18\x01 \x01(\tR\bheadline\x12\x18\n" +
 	"\abullets\x18\x02 \x03(\tR\abullets\x12*\n" +
-	"\x02at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02at*v\n" +
+	"\x02at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02at*\x8c\x01\n" +
 	"\vCommandKind\x12\x1c\n" +
 	"\x18COMMAND_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14COMMAND_KIND_COMPACT\x10\x01\x12\x17\n" +
 	"\x13COMMAND_KIND_RESUME\x10\x02\x12\x16\n" +
-	"\x12COMMAND_KIND_SPAWN\x10\x03*y\n" +
+	"\x12COMMAND_KIND_SPAWN\x10\x03\x12\x14\n" +
+	"\x10COMMAND_KIND_SAY\x10\x04*y\n" +
 	"\vDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15DISPOSITION_DELIVERED\x10\x01\x12\x19\n" +

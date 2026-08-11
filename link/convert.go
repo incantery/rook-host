@@ -203,6 +203,8 @@ func kindFromProto(k linkv1.CommandKind) string {
 		return "resume"
 	case linkv1.CommandKind_COMMAND_KIND_SPAWN:
 		return "spawn"
+	case linkv1.CommandKind_COMMAND_KIND_SAY:
+		return "say"
 	default:
 		return ""
 	}

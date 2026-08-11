@@ -148,3 +148,33 @@ func TestClampBoundsDigests(t *testing.T) {
 		t.Fatalf("no digest must stay no digest: %+v", a[2].Digest)
 	}
 }
+
+// say: sessionId + prompt, and a minute-bucketed key — a double-tap is
+// one message, deliberate repetition later is two.
+func TestValidCommandSay(t *testing.T) {
+	c, err := ValidCommand("say", "sess-1", "", "keep the test, drop the flag")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Kind != "say" || c.SessionID != "sess-1" || c.Prompt != "keep the test, drop the flag" {
+		t.Fatalf("fields mangled: %+v", c)
+	}
+	if !strings.HasPrefix(c.ID, "say:sess-1:") {
+		t.Fatalf("key shape: %s", c.ID)
+	}
+	// Same text, same minute: same key (the double-tap collapse).
+	c2, _ := ValidCommand("say", "sess-1", "", "keep the test, drop the flag")
+	if c2.ID != c.ID {
+		t.Fatalf("double-tap split: %s vs %s", c.ID, c2.ID)
+	}
+	// Refusals: no prompt, no session, a workspace where none belongs.
+	if _, err := ValidCommand("say", "sess-1", "", ""); err == nil {
+		t.Fatal("empty prompt accepted")
+	}
+	if _, err := ValidCommand("say", "", "", "hi"); err == nil {
+		t.Fatal("no session accepted")
+	}
+	if _, err := ValidCommand("say", "sess-1", "ws", "hi"); err == nil {
+		t.Fatal("workspace on a say accepted")
+	}
+}
