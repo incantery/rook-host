@@ -311,6 +311,55 @@ func (f *PaneFrame) Clamp() {
 	}
 }
 
+// Digest is one membrane artifact in full: the presentation membrane's
+// compression of a finished agent turn (the headline and bullets a
+// status snapshot already carries) plus the raw material it compressed
+// — the complete agent reply, the prompt that started the turn, and
+// the membrane-drafted reply when one exists. Served on demand over
+// the direct link (GetDigest); json tags only, no bson — nothing here
+// is persisted by a consumer, and the session's own record keeps every
+// word regardless.
+type Digest struct {
+	ID         string    `json:"id"`
+	SessionID  string    `json:"sessionId,omitempty"`
+	Headline   string    `json:"headline,omitempty"`
+	Bullets    []string  `json:"bullets,omitempty"`
+	FullText   string    `json:"fullText,omitempty"`
+	Prompt     string    `json:"prompt,omitempty"`
+	Reply      string    `json:"reply,omitempty"`
+	ReplyState string    `json:"replyState,omitempty"`
+	At         time.Time `json:"at,omitzero"`
+	Model      string    `json:"model,omitempty"`
+	CostUSD    float64   `json:"costUsd,omitempty"`
+}
+
+// Clamp caps every unbounded dimension in place — same discipline as
+// Status.Clamp: a misbehaving journal cannot grow a reply without
+// limit.
+func (d *Digest) Clamp() {
+	const (
+		maxHeadline = 400
+		maxBullets  = 8
+		maxBullet   = 400
+		maxFullText = 128 * 1024
+		maxSmall    = 8 * 1024
+	)
+	d.ID = clip(d.ID, MaxAskIDLen)
+	d.SessionID = clip(d.SessionID, MaxAskIDLen)
+	d.Headline = clip(d.Headline, maxHeadline)
+	if len(d.Bullets) > maxBullets {
+		d.Bullets = d.Bullets[:maxBullets]
+	}
+	for i := range d.Bullets {
+		d.Bullets[i] = clip(d.Bullets[i], maxBullet)
+	}
+	d.FullText = clip(d.FullText, maxFullText)
+	d.Prompt = clip(d.Prompt, maxSmall)
+	d.Reply = clip(d.Reply, maxSmall)
+	d.ReplyState = clip(d.ReplyState, 64)
+	d.Model = clip(d.Model, 128)
+}
+
 func clip(s string, n int) string {
 	if len(s) <= n {
 		return s

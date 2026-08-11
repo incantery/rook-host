@@ -169,6 +169,15 @@ service LinkService {
   // actually happened. cap: agent.command
   rpc SubmitCommand(SubmitCommandRequest) returns (SubmitCommandResponse);
 
+  // GetDigest returns the membrane's newest digest for one session IN
+  // FULL: the headline and bullets every status snapshot already
+  // carries, plus the full text of the turn it compressed, the prompt
+  // that started that turn, and the membrane-drafted reply when one
+  // exists. On-demand by design — the snapshot stays a glance, and the
+  // full text travels only when a human asks to read it.
+  // cap: session.read
+  rpc GetDigest(GetDigestRequest) returns (GetDigestResponse);
+
   // WatchPane streams display-ready cell grids for one session's pane.
   // Pane contents ride the direct link ONLY — this stream has no cloud
   // counterpart, deliberately. The session id is the same handle the
@@ -229,6 +238,40 @@ message SubmitCommandResponse {
   string command_id = 1;
   Disposition disposition = 2;
   string note = 3;
+}
+
+message GetDigestRequest {
+  // The machine's session id (projection Agent.id) — the same handle
+  // WatchPane takes.
+  string session_id = 1;
+}
+
+message GetDigestResponse {
+  Digest digest = 1;
+}
+
+// Digest is one membrane artifact in full — the presentation membrane's
+// compression of a finished agent turn, plus the raw material it
+// compressed. Bounds (enforced by Clamp() before send): headline ≤400
+// bytes, ≤8 bullets ×400 bytes, full_text ≤128 KiB, prompt and reply
+// ≤8 KiB each. The digest compresses the READING; the session keeps
+// every word — full_text here is a copy, never the record.
+message Digest {
+  string id = 1;
+  string session_id = 2;
+  string headline = 3;
+  repeated string bullets = 4;
+  // The complete agent reply the digest summarized.
+  string full_text = 5;
+  // What the human asked that turn.
+  string prompt = 6;
+  // The membrane-drafted reply, when one exists ("tap the draft").
+  string reply = 7;
+  // "", "drafting", "ready", "copied", or an error chip.
+  string reply_state = 8;
+  google.protobuf.Timestamp at = 9;
+  string model = 10;
+  double cost_usd = 11;
 }
 
 message WatchPaneRequest {

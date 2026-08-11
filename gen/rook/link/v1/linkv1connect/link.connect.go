@@ -81,6 +81,8 @@ const (
 	// LinkServiceSubmitCommandProcedure is the fully-qualified name of the LinkService's SubmitCommand
 	// RPC.
 	LinkServiceSubmitCommandProcedure = "/rook.link.v1.LinkService/SubmitCommand"
+	// LinkServiceGetDigestProcedure is the fully-qualified name of the LinkService's GetDigest RPC.
+	LinkServiceGetDigestProcedure = "/rook.link.v1.LinkService/GetDigest"
 	// LinkServiceWatchPaneProcedure is the fully-qualified name of the LinkService's WatchPane RPC.
 	LinkServiceWatchPaneProcedure = "/rook.link.v1.LinkService/WatchPane"
 )
@@ -280,6 +282,14 @@ type LinkServiceClient interface {
 	// executes synchronously through its local gates, and reports what
 	// actually happened. cap: agent.command
 	SubmitCommand(context.Context, *connect.Request[v1.SubmitCommandRequest]) (*connect.Response[v1.SubmitCommandResponse], error)
+	// GetDigest returns the membrane's newest digest for one session IN
+	// FULL: the headline and bullets every status snapshot already
+	// carries, plus the full text of the turn it compressed, the prompt
+	// that started that turn, and the membrane-drafted reply when one
+	// exists. On-demand by design — the snapshot stays a glance, and the
+	// full text travels only when a human asks to read it.
+	// cap: session.read
+	GetDigest(context.Context, *connect.Request[v1.GetDigestRequest]) (*connect.Response[v1.GetDigestResponse], error)
 	// WatchPane streams display-ready cell grids for one session's pane.
 	// Pane contents ride the direct link ONLY — this stream has no cloud
 	// counterpart, deliberately. The session id is the same handle the
@@ -326,6 +336,12 @@ func NewLinkServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(linkServiceMethods.ByName("SubmitCommand")),
 			connect.WithClientOptions(opts...),
 		),
+		getDigest: connect.NewClient[v1.GetDigestRequest, v1.GetDigestResponse](
+			httpClient,
+			baseURL+LinkServiceGetDigestProcedure,
+			connect.WithSchema(linkServiceMethods.ByName("GetDigest")),
+			connect.WithClientOptions(opts...),
+		),
 		watchPane: connect.NewClient[v1.WatchPaneRequest, v1.WatchPaneResponse](
 			httpClient,
 			baseURL+LinkServiceWatchPaneProcedure,
@@ -341,6 +357,7 @@ type linkServiceClient struct {
 	watchStatus   *connect.Client[v1.WatchStatusRequest, v1.WatchStatusResponse]
 	submitAnswer  *connect.Client[v1.SubmitAnswerRequest, v1.SubmitAnswerResponse]
 	submitCommand *connect.Client[v1.SubmitCommandRequest, v1.SubmitCommandResponse]
+	getDigest     *connect.Client[v1.GetDigestRequest, v1.GetDigestResponse]
 	watchPane     *connect.Client[v1.WatchPaneRequest, v1.WatchPaneResponse]
 }
 
@@ -362,6 +379,11 @@ func (c *linkServiceClient) SubmitAnswer(ctx context.Context, req *connect.Reque
 // SubmitCommand calls rook.link.v1.LinkService.SubmitCommand.
 func (c *linkServiceClient) SubmitCommand(ctx context.Context, req *connect.Request[v1.SubmitCommandRequest]) (*connect.Response[v1.SubmitCommandResponse], error) {
 	return c.submitCommand.CallUnary(ctx, req)
+}
+
+// GetDigest calls rook.link.v1.LinkService.GetDigest.
+func (c *linkServiceClient) GetDigest(ctx context.Context, req *connect.Request[v1.GetDigestRequest]) (*connect.Response[v1.GetDigestResponse], error) {
+	return c.getDigest.CallUnary(ctx, req)
 }
 
 // WatchPane calls rook.link.v1.LinkService.WatchPane.
@@ -390,6 +412,14 @@ type LinkServiceHandler interface {
 	// executes synchronously through its local gates, and reports what
 	// actually happened. cap: agent.command
 	SubmitCommand(context.Context, *connect.Request[v1.SubmitCommandRequest]) (*connect.Response[v1.SubmitCommandResponse], error)
+	// GetDigest returns the membrane's newest digest for one session IN
+	// FULL: the headline and bullets every status snapshot already
+	// carries, plus the full text of the turn it compressed, the prompt
+	// that started that turn, and the membrane-drafted reply when one
+	// exists. On-demand by design — the snapshot stays a glance, and the
+	// full text travels only when a human asks to read it.
+	// cap: session.read
+	GetDigest(context.Context, *connect.Request[v1.GetDigestRequest]) (*connect.Response[v1.GetDigestResponse], error)
 	// WatchPane streams display-ready cell grids for one session's pane.
 	// Pane contents ride the direct link ONLY — this stream has no cloud
 	// counterpart, deliberately. The session id is the same handle the
@@ -432,6 +462,12 @@ func NewLinkServiceHandler(svc LinkServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(linkServiceMethods.ByName("SubmitCommand")),
 		connect.WithHandlerOptions(opts...),
 	)
+	linkServiceGetDigestHandler := connect.NewUnaryHandler(
+		LinkServiceGetDigestProcedure,
+		svc.GetDigest,
+		connect.WithSchema(linkServiceMethods.ByName("GetDigest")),
+		connect.WithHandlerOptions(opts...),
+	)
 	linkServiceWatchPaneHandler := connect.NewServerStreamHandler(
 		LinkServiceWatchPaneProcedure,
 		svc.WatchPane,
@@ -448,6 +484,8 @@ func NewLinkServiceHandler(svc LinkServiceHandler, opts ...connect.HandlerOption
 			linkServiceSubmitAnswerHandler.ServeHTTP(w, r)
 		case LinkServiceSubmitCommandProcedure:
 			linkServiceSubmitCommandHandler.ServeHTTP(w, r)
+		case LinkServiceGetDigestProcedure:
+			linkServiceGetDigestHandler.ServeHTTP(w, r)
 		case LinkServiceWatchPaneProcedure:
 			linkServiceWatchPaneHandler.ServeHTTP(w, r)
 		default:
@@ -473,6 +511,10 @@ func (UnimplementedLinkServiceHandler) SubmitAnswer(context.Context, *connect.Re
 
 func (UnimplementedLinkServiceHandler) SubmitCommand(context.Context, *connect.Request[v1.SubmitCommandRequest]) (*connect.Response[v1.SubmitCommandResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rook.link.v1.LinkService.SubmitCommand is not implemented"))
+}
+
+func (UnimplementedLinkServiceHandler) GetDigest(context.Context, *connect.Request[v1.GetDigestRequest]) (*connect.Response[v1.GetDigestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rook.link.v1.LinkService.GetDigest is not implemented"))
 }
 
 func (UnimplementedLinkServiceHandler) WatchPane(context.Context, *connect.Request[v1.WatchPaneRequest], *connect.ServerStream[v1.WatchPaneResponse]) error {

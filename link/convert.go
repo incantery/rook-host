@@ -210,3 +210,44 @@ func dispositionToProto(d Disposition) linkv1.Disposition {
 		return linkv1.Disposition_DISPOSITION_UNSPECIFIED
 	}
 }
+
+func digestToProto(d projection.Digest) *linkv1.Digest {
+	out := &linkv1.Digest{
+		Id:         d.ID,
+		SessionId:  d.SessionID,
+		Headline:   d.Headline,
+		Bullets:    d.Bullets,
+		FullText:   d.FullText,
+		Prompt:     d.Prompt,
+		Reply:      d.Reply,
+		ReplyState: d.ReplyState,
+		Model:      d.Model,
+		CostUsd:    d.CostUSD,
+	}
+	if !d.At.IsZero() {
+		out.At = timestamppb.New(d.At)
+	}
+	return out
+}
+
+func digestFromProto(p *linkv1.Digest) projection.Digest {
+	if p == nil {
+		return projection.Digest{}
+	}
+	out := projection.Digest{
+		ID:         p.Id,
+		SessionID:  p.SessionId,
+		Headline:   p.Headline,
+		Bullets:    p.Bullets,
+		FullText:   p.FullText,
+		Prompt:     p.Prompt,
+		Reply:      p.Reply,
+		ReplyState: p.ReplyState,
+		Model:      p.Model,
+		CostUSD:    p.CostUsd,
+	}
+	if p.At != nil {
+		out.At = p.At.AsTime()
+	}
+	return out
+}

@@ -132,3 +132,26 @@ func TestUnknownStateBecomesUnspecified(t *testing.T) {
 		t.Fatalf("invented a state: %q", got.Workspaces[0].Agents[0].State)
 	}
 }
+
+func TestDigestProtoRoundTrip(t *testing.T) {
+	want := projection.Digest{
+		ID:         "d-42",
+		SessionID:  "sess-42",
+		Headline:   "compressed the turn",
+		Bullets:    []string{"alpha", "beta", "gamma"},
+		FullText:   "every word of the reply, uncut",
+		Prompt:     "do the work",
+		Reply:      "drafted answer",
+		ReplyState: "ready",
+		At:         time.Unix(1754900000, 0).UTC(),
+		Model:      "m",
+		CostUSD:    0.001,
+	}
+	got := digestFromProto(digestToProto(want))
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("round trip changed the digest:\n got %+v\nwant %+v", got, want)
+	}
+	if !reflect.DeepEqual(digestFromProto(nil), projection.Digest{}) {
+		t.Fatal("nil proto should decode to the zero digest")
+	}
+}

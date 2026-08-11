@@ -306,7 +306,7 @@ func (x WatchPaneResponse_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WatchPaneResponse_Kind.Descriptor instead.
 func (WatchPaneResponse_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{17, 0}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{20, 0}
 }
 
 type GetHostInfoRequest struct {
@@ -1283,6 +1283,230 @@ func (x *SubmitCommandResponse) GetNote() string {
 	return ""
 }
 
+type GetDigestRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The machine's session id (projection Agent.id) — the same handle
+	// WatchPane takes.
+	SessionId     string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDigestRequest) Reset() {
+	*x = GetDigestRequest{}
+	mi := &file_rook_link_v1_link_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDigestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDigestRequest) ProtoMessage() {}
+
+func (x *GetDigestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rook_link_v1_link_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDigestRequest.ProtoReflect.Descriptor instead.
+func (*GetDigestRequest) Descriptor() ([]byte, []int) {
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetDigestRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type GetDigestResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Digest        *Digest                `protobuf:"bytes,1,opt,name=digest,proto3" json:"digest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDigestResponse) Reset() {
+	*x = GetDigestResponse{}
+	mi := &file_rook_link_v1_link_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDigestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDigestResponse) ProtoMessage() {}
+
+func (x *GetDigestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rook_link_v1_link_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDigestResponse.ProtoReflect.Descriptor instead.
+func (*GetDigestResponse) Descriptor() ([]byte, []int) {
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetDigestResponse) GetDigest() *Digest {
+	if x != nil {
+		return x.Digest
+	}
+	return nil
+}
+
+// Digest is one membrane artifact in full — the presentation membrane's
+// compression of a finished agent turn, plus the raw material it
+// compressed. Bounds (enforced by Clamp() before send): headline ≤400
+// bytes, ≤8 bullets ×400 bytes, full_text ≤128 KiB, prompt and reply
+// ≤8 KiB each. The digest compresses the READING; the session keeps
+// every word — full_text here is a copy, never the record.
+type Digest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SessionId string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Headline  string                 `protobuf:"bytes,3,opt,name=headline,proto3" json:"headline,omitempty"`
+	Bullets   []string               `protobuf:"bytes,4,rep,name=bullets,proto3" json:"bullets,omitempty"`
+	// The complete agent reply the digest summarized.
+	FullText string `protobuf:"bytes,5,opt,name=full_text,json=fullText,proto3" json:"full_text,omitempty"`
+	// What the human asked that turn.
+	Prompt string `protobuf:"bytes,6,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	// The membrane-drafted reply, when one exists ("tap the draft").
+	Reply string `protobuf:"bytes,7,opt,name=reply,proto3" json:"reply,omitempty"`
+	// "", "drafting", "ready", "copied", or an error chip.
+	ReplyState    string                 `protobuf:"bytes,8,opt,name=reply_state,json=replyState,proto3" json:"reply_state,omitempty"`
+	At            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=at,proto3" json:"at,omitempty"`
+	Model         string                 `protobuf:"bytes,10,opt,name=model,proto3" json:"model,omitempty"`
+	CostUsd       float64                `protobuf:"fixed64,11,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Digest) Reset() {
+	*x = Digest{}
+	mi := &file_rook_link_v1_link_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Digest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Digest) ProtoMessage() {}
+
+func (x *Digest) ProtoReflect() protoreflect.Message {
+	mi := &file_rook_link_v1_link_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Digest.ProtoReflect.Descriptor instead.
+func (*Digest) Descriptor() ([]byte, []int) {
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *Digest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Digest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *Digest) GetHeadline() string {
+	if x != nil {
+		return x.Headline
+	}
+	return ""
+}
+
+func (x *Digest) GetBullets() []string {
+	if x != nil {
+		return x.Bullets
+	}
+	return nil
+}
+
+func (x *Digest) GetFullText() string {
+	if x != nil {
+		return x.FullText
+	}
+	return ""
+}
+
+func (x *Digest) GetPrompt() string {
+	if x != nil {
+		return x.Prompt
+	}
+	return ""
+}
+
+func (x *Digest) GetReply() string {
+	if x != nil {
+		return x.Reply
+	}
+	return ""
+}
+
+func (x *Digest) GetReplyState() string {
+	if x != nil {
+		return x.ReplyState
+	}
+	return ""
+}
+
+func (x *Digest) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
+}
+
+func (x *Digest) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *Digest) GetCostUsd() float64 {
+	if x != nil {
+		return x.CostUsd
+	}
+	return 0
+}
+
 type WatchPaneRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The machine's session id (projection Agent.id) — the only handle
@@ -1295,7 +1519,7 @@ type WatchPaneRequest struct {
 
 func (x *WatchPaneRequest) Reset() {
 	*x = WatchPaneRequest{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[16]
+	mi := &file_rook_link_v1_link_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1307,7 +1531,7 @@ func (x *WatchPaneRequest) String() string {
 func (*WatchPaneRequest) ProtoMessage() {}
 
 func (x *WatchPaneRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[16]
+	mi := &file_rook_link_v1_link_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1320,7 +1544,7 @@ func (x *WatchPaneRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchPaneRequest.ProtoReflect.Descriptor instead.
 func (*WatchPaneRequest) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{16}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *WatchPaneRequest) GetSessionId() string {
@@ -1343,7 +1567,7 @@ type WatchPaneResponse struct {
 
 func (x *WatchPaneResponse) Reset() {
 	*x = WatchPaneResponse{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[17]
+	mi := &file_rook_link_v1_link_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1355,7 +1579,7 @@ func (x *WatchPaneResponse) String() string {
 func (*WatchPaneResponse) ProtoMessage() {}
 
 func (x *WatchPaneResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[17]
+	mi := &file_rook_link_v1_link_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1368,7 +1592,7 @@ func (x *WatchPaneResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchPaneResponse.ProtoReflect.Descriptor instead.
 func (*WatchPaneResponse) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{17}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *WatchPaneResponse) GetKind() WatchPaneResponse_Kind {
@@ -1411,7 +1635,7 @@ type PaneFrame struct {
 
 func (x *PaneFrame) Reset() {
 	*x = PaneFrame{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[18]
+	mi := &file_rook_link_v1_link_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1423,7 +1647,7 @@ func (x *PaneFrame) String() string {
 func (*PaneFrame) ProtoMessage() {}
 
 func (x *PaneFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[18]
+	mi := &file_rook_link_v1_link_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1436,7 +1660,7 @@ func (x *PaneFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PaneFrame.ProtoReflect.Descriptor instead.
 func (*PaneFrame) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{18}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *PaneFrame) GetCols() uint32 {
@@ -1494,7 +1718,7 @@ type PaneRow struct {
 
 func (x *PaneRow) Reset() {
 	*x = PaneRow{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[19]
+	mi := &file_rook_link_v1_link_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1506,7 +1730,7 @@ func (x *PaneRow) String() string {
 func (*PaneRow) ProtoMessage() {}
 
 func (x *PaneRow) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[19]
+	mi := &file_rook_link_v1_link_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1519,7 +1743,7 @@ func (x *PaneRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PaneRow.ProtoReflect.Descriptor instead.
 func (*PaneRow) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{19}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *PaneRow) GetText() string {
@@ -1552,7 +1776,7 @@ type StyleRun struct {
 
 func (x *StyleRun) Reset() {
 	*x = StyleRun{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[20]
+	mi := &file_rook_link_v1_link_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1564,7 +1788,7 @@ func (x *StyleRun) String() string {
 func (*StyleRun) ProtoMessage() {}
 
 func (x *StyleRun) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[20]
+	mi := &file_rook_link_v1_link_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1577,7 +1801,7 @@ func (x *StyleRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StyleRun.ProtoReflect.Descriptor instead.
 func (*StyleRun) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{20}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *StyleRun) GetStart() uint32 {
@@ -1633,7 +1857,7 @@ type Status struct {
 
 func (x *Status) Reset() {
 	*x = Status{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[21]
+	mi := &file_rook_link_v1_link_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1645,7 +1869,7 @@ func (x *Status) String() string {
 func (*Status) ProtoMessage() {}
 
 func (x *Status) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[21]
+	mi := &file_rook_link_v1_link_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1658,7 +1882,7 @@ func (x *Status) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Status.ProtoReflect.Descriptor instead.
 func (*Status) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{21}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Status) GetHostname() string {
@@ -1708,7 +1932,7 @@ type Workspace struct {
 
 func (x *Workspace) Reset() {
 	*x = Workspace{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[22]
+	mi := &file_rook_link_v1_link_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1720,7 +1944,7 @@ func (x *Workspace) String() string {
 func (*Workspace) ProtoMessage() {}
 
 func (x *Workspace) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[22]
+	mi := &file_rook_link_v1_link_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1733,7 +1957,7 @@ func (x *Workspace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Workspace.ProtoReflect.Descriptor instead.
 func (*Workspace) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{22}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *Workspace) GetName() string {
@@ -1786,7 +2010,7 @@ type Agent struct {
 
 func (x *Agent) Reset() {
 	*x = Agent{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[23]
+	mi := &file_rook_link_v1_link_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1798,7 +2022,7 @@ func (x *Agent) String() string {
 func (*Agent) ProtoMessage() {}
 
 func (x *Agent) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[23]
+	mi := &file_rook_link_v1_link_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1811,7 +2035,7 @@ func (x *Agent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Agent.ProtoReflect.Descriptor instead.
 func (*Agent) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{23}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *Agent) GetId() string {
@@ -1895,7 +2119,7 @@ type AgentDigest struct {
 
 func (x *AgentDigest) Reset() {
 	*x = AgentDigest{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[24]
+	mi := &file_rook_link_v1_link_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1907,7 +2131,7 @@ func (x *AgentDigest) String() string {
 func (*AgentDigest) ProtoMessage() {}
 
 func (x *AgentDigest) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[24]
+	mi := &file_rook_link_v1_link_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1920,7 +2144,7 @@ func (x *AgentDigest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentDigest.ProtoReflect.Descriptor instead.
 func (*AgentDigest) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{24}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *AgentDigest) GetHeadline() string {
@@ -2019,6 +2243,26 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"command_id\x18\x01 \x01(\tR\tcommandId\x12;\n" +
 	"\vdisposition\x18\x02 \x01(\x0e2\x19.rook.link.v1.DispositionR\vdisposition\x12\x12\n" +
 	"\x04note\x18\x03 \x01(\tR\x04note\"1\n" +
+	"\x10GetDigestRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"A\n" +
+	"\x11GetDigestResponse\x12,\n" +
+	"\x06digest\x18\x01 \x01(\v2\x14.rook.link.v1.DigestR\x06digest\"\xb6\x02\n" +
+	"\x06Digest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x1a\n" +
+	"\bheadline\x18\x03 \x01(\tR\bheadline\x12\x18\n" +
+	"\abullets\x18\x04 \x03(\tR\abullets\x12\x1b\n" +
+	"\tfull_text\x18\x05 \x01(\tR\bfullText\x12\x16\n" +
+	"\x06prompt\x18\x06 \x01(\tR\x06prompt\x12\x14\n" +
+	"\x05reply\x18\a \x01(\tR\x05reply\x12\x1f\n" +
+	"\vreply_state\x18\b \x01(\tR\n" +
+	"replyState\x12*\n" +
+	"\x02at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x14\n" +
+	"\x05model\x18\n" +
+	" \x01(\tR\x05model\x12\x19\n" +
+	"\bcost_usd\x18\v \x01(\x01R\acostUsd\"1\n" +
 	"\x10WatchPaneRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"\xd3\x01\n" +
@@ -2096,12 +2340,13 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"\vGetHostInfo\x12 .rook.link.v1.GetHostInfoRequest\x1a!.rook.link.v1.GetHostInfoResponse\x12=\n" +
 	"\x04Pair\x12\x19.rook.link.v1.PairRequest\x1a\x1a.rook.link.v1.PairResponse\x12L\n" +
 	"\tChallenge\x12\x1e.rook.link.v1.ChallengeRequest\x1a\x1f.rook.link.v1.ChallengeResponse\x12U\n" +
-	"\fAuthenticate\x12!.rook.link.v1.AuthenticateRequest\x1a\".rook.link.v1.AuthenticateResponse2\xb2\x03\n" +
+	"\fAuthenticate\x12!.rook.link.v1.AuthenticateRequest\x1a\".rook.link.v1.AuthenticateResponse2\x80\x04\n" +
 	"\vLinkService\x12L\n" +
 	"\tGetStatus\x12\x1e.rook.link.v1.GetStatusRequest\x1a\x1f.rook.link.v1.GetStatusResponse\x12T\n" +
 	"\vWatchStatus\x12 .rook.link.v1.WatchStatusRequest\x1a!.rook.link.v1.WatchStatusResponse0\x01\x12U\n" +
 	"\fSubmitAnswer\x12!.rook.link.v1.SubmitAnswerRequest\x1a\".rook.link.v1.SubmitAnswerResponse\x12X\n" +
-	"\rSubmitCommand\x12\".rook.link.v1.SubmitCommandRequest\x1a#.rook.link.v1.SubmitCommandResponse\x12N\n" +
+	"\rSubmitCommand\x12\".rook.link.v1.SubmitCommandRequest\x1a#.rook.link.v1.SubmitCommandResponse\x12L\n" +
+	"\tGetDigest\x12\x1e.rook.link.v1.GetDigestRequest\x1a\x1f.rook.link.v1.GetDigestResponse\x12N\n" +
 	"\tWatchPane\x12\x1e.rook.link.v1.WatchPaneRequest\x1a\x1f.rook.link.v1.WatchPaneResponse0\x01B8Z6github.com/incantery/rook-host/gen/rook/link/v1;linkv1b\x06proto3"
 
 var (
@@ -2117,7 +2362,7 @@ func file_rook_link_v1_link_proto_rawDescGZIP() []byte {
 }
 
 var file_rook_link_v1_link_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_rook_link_v1_link_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_rook_link_v1_link_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_rook_link_v1_link_proto_goTypes = []any{
 	(CommandKind)(0),              // 0: rook.link.v1.CommandKind
 	(Disposition)(0),              // 1: rook.link.v1.Disposition
@@ -2140,60 +2385,67 @@ var file_rook_link_v1_link_proto_goTypes = []any{
 	(*SubmitAnswerResponse)(nil),  // 18: rook.link.v1.SubmitAnswerResponse
 	(*SubmitCommandRequest)(nil),  // 19: rook.link.v1.SubmitCommandRequest
 	(*SubmitCommandResponse)(nil), // 20: rook.link.v1.SubmitCommandResponse
-	(*WatchPaneRequest)(nil),      // 21: rook.link.v1.WatchPaneRequest
-	(*WatchPaneResponse)(nil),     // 22: rook.link.v1.WatchPaneResponse
-	(*PaneFrame)(nil),             // 23: rook.link.v1.PaneFrame
-	(*PaneRow)(nil),               // 24: rook.link.v1.PaneRow
-	(*StyleRun)(nil),              // 25: rook.link.v1.StyleRun
-	(*Status)(nil),                // 26: rook.link.v1.Status
-	(*Workspace)(nil),             // 27: rook.link.v1.Workspace
-	(*Agent)(nil),                 // 28: rook.link.v1.Agent
-	(*AgentDigest)(nil),           // 29: rook.link.v1.AgentDigest
-	(*timestamppb.Timestamp)(nil), // 30: google.protobuf.Timestamp
+	(*GetDigestRequest)(nil),      // 21: rook.link.v1.GetDigestRequest
+	(*GetDigestResponse)(nil),     // 22: rook.link.v1.GetDigestResponse
+	(*Digest)(nil),                // 23: rook.link.v1.Digest
+	(*WatchPaneRequest)(nil),      // 24: rook.link.v1.WatchPaneRequest
+	(*WatchPaneResponse)(nil),     // 25: rook.link.v1.WatchPaneResponse
+	(*PaneFrame)(nil),             // 26: rook.link.v1.PaneFrame
+	(*PaneRow)(nil),               // 27: rook.link.v1.PaneRow
+	(*StyleRun)(nil),              // 28: rook.link.v1.StyleRun
+	(*Status)(nil),                // 29: rook.link.v1.Status
+	(*Workspace)(nil),             // 30: rook.link.v1.Workspace
+	(*Agent)(nil),                 // 31: rook.link.v1.Agent
+	(*AgentDigest)(nil),           // 32: rook.link.v1.AgentDigest
+	(*timestamppb.Timestamp)(nil), // 33: google.protobuf.Timestamp
 }
 var file_rook_link_v1_link_proto_depIdxs = []int32{
-	30, // 0: rook.link.v1.ChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
-	30, // 1: rook.link.v1.AuthenticateResponse.expires_at:type_name -> google.protobuf.Timestamp
-	26, // 2: rook.link.v1.GetStatusResponse.status:type_name -> rook.link.v1.Status
+	33, // 0: rook.link.v1.ChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	33, // 1: rook.link.v1.AuthenticateResponse.expires_at:type_name -> google.protobuf.Timestamp
+	29, // 2: rook.link.v1.GetStatusResponse.status:type_name -> rook.link.v1.Status
 	3,  // 3: rook.link.v1.WatchStatusResponse.kind:type_name -> rook.link.v1.WatchStatusResponse.Kind
-	26, // 4: rook.link.v1.WatchStatusResponse.status:type_name -> rook.link.v1.Status
+	29, // 4: rook.link.v1.WatchStatusResponse.status:type_name -> rook.link.v1.Status
 	1,  // 5: rook.link.v1.SubmitAnswerResponse.disposition:type_name -> rook.link.v1.Disposition
 	0,  // 6: rook.link.v1.SubmitCommandRequest.kind:type_name -> rook.link.v1.CommandKind
 	1,  // 7: rook.link.v1.SubmitCommandResponse.disposition:type_name -> rook.link.v1.Disposition
-	4,  // 8: rook.link.v1.WatchPaneResponse.kind:type_name -> rook.link.v1.WatchPaneResponse.Kind
-	23, // 9: rook.link.v1.WatchPaneResponse.frame:type_name -> rook.link.v1.PaneFrame
-	24, // 10: rook.link.v1.PaneFrame.lines:type_name -> rook.link.v1.PaneRow
-	25, // 11: rook.link.v1.PaneRow.runs:type_name -> rook.link.v1.StyleRun
-	27, // 12: rook.link.v1.Status.workspaces:type_name -> rook.link.v1.Workspace
-	30, // 13: rook.link.v1.Status.at:type_name -> google.protobuf.Timestamp
-	28, // 14: rook.link.v1.Workspace.agents:type_name -> rook.link.v1.Agent
-	2,  // 15: rook.link.v1.Agent.state:type_name -> rook.link.v1.AgentState
-	29, // 16: rook.link.v1.Agent.digest:type_name -> rook.link.v1.AgentDigest
-	30, // 17: rook.link.v1.Agent.last_event:type_name -> google.protobuf.Timestamp
-	30, // 18: rook.link.v1.AgentDigest.at:type_name -> google.protobuf.Timestamp
-	5,  // 19: rook.link.v1.HostService.GetHostInfo:input_type -> rook.link.v1.GetHostInfoRequest
-	7,  // 20: rook.link.v1.HostService.Pair:input_type -> rook.link.v1.PairRequest
-	9,  // 21: rook.link.v1.HostService.Challenge:input_type -> rook.link.v1.ChallengeRequest
-	11, // 22: rook.link.v1.HostService.Authenticate:input_type -> rook.link.v1.AuthenticateRequest
-	13, // 23: rook.link.v1.LinkService.GetStatus:input_type -> rook.link.v1.GetStatusRequest
-	15, // 24: rook.link.v1.LinkService.WatchStatus:input_type -> rook.link.v1.WatchStatusRequest
-	17, // 25: rook.link.v1.LinkService.SubmitAnswer:input_type -> rook.link.v1.SubmitAnswerRequest
-	19, // 26: rook.link.v1.LinkService.SubmitCommand:input_type -> rook.link.v1.SubmitCommandRequest
-	21, // 27: rook.link.v1.LinkService.WatchPane:input_type -> rook.link.v1.WatchPaneRequest
-	6,  // 28: rook.link.v1.HostService.GetHostInfo:output_type -> rook.link.v1.GetHostInfoResponse
-	8,  // 29: rook.link.v1.HostService.Pair:output_type -> rook.link.v1.PairResponse
-	10, // 30: rook.link.v1.HostService.Challenge:output_type -> rook.link.v1.ChallengeResponse
-	12, // 31: rook.link.v1.HostService.Authenticate:output_type -> rook.link.v1.AuthenticateResponse
-	14, // 32: rook.link.v1.LinkService.GetStatus:output_type -> rook.link.v1.GetStatusResponse
-	16, // 33: rook.link.v1.LinkService.WatchStatus:output_type -> rook.link.v1.WatchStatusResponse
-	18, // 34: rook.link.v1.LinkService.SubmitAnswer:output_type -> rook.link.v1.SubmitAnswerResponse
-	20, // 35: rook.link.v1.LinkService.SubmitCommand:output_type -> rook.link.v1.SubmitCommandResponse
-	22, // 36: rook.link.v1.LinkService.WatchPane:output_type -> rook.link.v1.WatchPaneResponse
-	28, // [28:37] is the sub-list for method output_type
-	19, // [19:28] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	23, // 8: rook.link.v1.GetDigestResponse.digest:type_name -> rook.link.v1.Digest
+	33, // 9: rook.link.v1.Digest.at:type_name -> google.protobuf.Timestamp
+	4,  // 10: rook.link.v1.WatchPaneResponse.kind:type_name -> rook.link.v1.WatchPaneResponse.Kind
+	26, // 11: rook.link.v1.WatchPaneResponse.frame:type_name -> rook.link.v1.PaneFrame
+	27, // 12: rook.link.v1.PaneFrame.lines:type_name -> rook.link.v1.PaneRow
+	28, // 13: rook.link.v1.PaneRow.runs:type_name -> rook.link.v1.StyleRun
+	30, // 14: rook.link.v1.Status.workspaces:type_name -> rook.link.v1.Workspace
+	33, // 15: rook.link.v1.Status.at:type_name -> google.protobuf.Timestamp
+	31, // 16: rook.link.v1.Workspace.agents:type_name -> rook.link.v1.Agent
+	2,  // 17: rook.link.v1.Agent.state:type_name -> rook.link.v1.AgentState
+	32, // 18: rook.link.v1.Agent.digest:type_name -> rook.link.v1.AgentDigest
+	33, // 19: rook.link.v1.Agent.last_event:type_name -> google.protobuf.Timestamp
+	33, // 20: rook.link.v1.AgentDigest.at:type_name -> google.protobuf.Timestamp
+	5,  // 21: rook.link.v1.HostService.GetHostInfo:input_type -> rook.link.v1.GetHostInfoRequest
+	7,  // 22: rook.link.v1.HostService.Pair:input_type -> rook.link.v1.PairRequest
+	9,  // 23: rook.link.v1.HostService.Challenge:input_type -> rook.link.v1.ChallengeRequest
+	11, // 24: rook.link.v1.HostService.Authenticate:input_type -> rook.link.v1.AuthenticateRequest
+	13, // 25: rook.link.v1.LinkService.GetStatus:input_type -> rook.link.v1.GetStatusRequest
+	15, // 26: rook.link.v1.LinkService.WatchStatus:input_type -> rook.link.v1.WatchStatusRequest
+	17, // 27: rook.link.v1.LinkService.SubmitAnswer:input_type -> rook.link.v1.SubmitAnswerRequest
+	19, // 28: rook.link.v1.LinkService.SubmitCommand:input_type -> rook.link.v1.SubmitCommandRequest
+	21, // 29: rook.link.v1.LinkService.GetDigest:input_type -> rook.link.v1.GetDigestRequest
+	24, // 30: rook.link.v1.LinkService.WatchPane:input_type -> rook.link.v1.WatchPaneRequest
+	6,  // 31: rook.link.v1.HostService.GetHostInfo:output_type -> rook.link.v1.GetHostInfoResponse
+	8,  // 32: rook.link.v1.HostService.Pair:output_type -> rook.link.v1.PairResponse
+	10, // 33: rook.link.v1.HostService.Challenge:output_type -> rook.link.v1.ChallengeResponse
+	12, // 34: rook.link.v1.HostService.Authenticate:output_type -> rook.link.v1.AuthenticateResponse
+	14, // 35: rook.link.v1.LinkService.GetStatus:output_type -> rook.link.v1.GetStatusResponse
+	16, // 36: rook.link.v1.LinkService.WatchStatus:output_type -> rook.link.v1.WatchStatusResponse
+	18, // 37: rook.link.v1.LinkService.SubmitAnswer:output_type -> rook.link.v1.SubmitAnswerResponse
+	20, // 38: rook.link.v1.LinkService.SubmitCommand:output_type -> rook.link.v1.SubmitCommandResponse
+	22, // 39: rook.link.v1.LinkService.GetDigest:output_type -> rook.link.v1.GetDigestResponse
+	25, // 40: rook.link.v1.LinkService.WatchPane:output_type -> rook.link.v1.WatchPaneResponse
+	31, // [31:41] is the sub-list for method output_type
+	21, // [21:31] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_rook_link_v1_link_proto_init() }
@@ -2207,7 +2459,7 @@ func file_rook_link_v1_link_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rook_link_v1_link_proto_rawDesc), len(file_rook_link_v1_link_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   25,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

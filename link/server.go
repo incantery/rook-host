@@ -39,6 +39,10 @@ type Options struct {
 	// Panes produces live pane frames for watched sessions. nil =
 	// WatchPane answers Unimplemented; everything else still works.
 	Panes PaneSource
+	// Digests resolves a session's newest membrane digest, in full.
+	// nil = GetDigest answers Unimplemented; everything else still
+	// works.
+	Digests DigestSource
 	// RequestedTTL for heartbeats on WatchStatus. Well under the ~100s
 	// idle cutoff proxies apply to a silent body. 0 = 25s.
 	Heartbeat time.Duration
@@ -61,8 +65,18 @@ type Server struct {
 
 	hub     *hub
 	paneHub *paneHub
+	digests DigestSource
 	tokens  *tokens
 	nonces  *nonces
+}
+
+// DigestSource resolves the newest membrane digest for one session —
+// the full artifact, not the snapshot's headline. Implementations read
+// their own store (the plugin reads the digest journal); (Digest{},
+// false) means "no digest for that session right now", which the RPC
+// reports as NotFound.
+type DigestSource interface {
+	Digest(sessionID string) (projection.Digest, bool)
 }
 
 // NewServer wires a Server. Panics on missing requirements — this is
@@ -90,6 +104,7 @@ func NewServer(o Options) *Server {
 		now:       o.Now,
 		hub:       newHub(),
 		paneHub:   newPaneHub(o.Panes),
+		digests:   o.Digests,
 		tokens:    newTokens(),
 		nonces:    newNonces(),
 	}
@@ -320,6 +335,30 @@ func (s *Server) WatchStatus(ctx context.Context, req *connect.Request[linkv1.Wa
 			}
 		}
 	}
+}
+
+// GetDigest hands over one session's newest membrane digest in full.
+// Same capability as WatchPane: the full text of an agent turn is
+// session content, exactly the class session.read was minted for.
+func (s *Server) GetDigest(ctx context.Context, req *connect.Request[linkv1.GetDigestRequest]) (*connect.Response[linkv1.GetDigestResponse], error) {
+	if _, err := s.authorize(req.Header(), registry.CapSessionRead); err != nil {
+		return nil, err
+	}
+	if s.digests == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("this host does not serve digests"))
+	}
+	sessionID := req.Msg.SessionId
+	if sessionID == "" || len(sessionID) > projection.MaxAskIDLen {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id required"))
+	}
+	d, ok := s.digests.Digest(sessionID)
+	if !ok {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no digest for that session"))
+	}
+	d.Clamp()
+	return connect.NewResponse(&linkv1.GetDigestResponse{
+		Digest: digestToProto(d),
+	}), nil
 }
 
 func (s *Server) WatchPane(ctx context.Context, req *connect.Request[linkv1.WatchPaneRequest], stream *connect.ServerStream[linkv1.WatchPaneResponse]) error {

@@ -89,20 +89,29 @@ func (f *fakePanes) counts(sessionID string) (opens, closes int) {
 	return f.opens[sessionID], f.closes[sessionID]
 }
 
+// fakeDigests serves canned membrane artifacts by session id.
+type fakeDigests map[string]projection.Digest
+
+func (f fakeDigests) Digest(sessionID string) (projection.Digest, bool) {
+	d, ok := f[sessionID]
+	return d, ok
+}
+
 // rig is one host under test plus everything a test pokes at.
 type rig struct {
-	t      *testing.T
-	srv    *link.Server
-	id     *identity.Identity
-	reg    *registry.Registry
-	pairs  *pairing.Manager
-	exec   *fakeExec
-	panes  *fakePanes
-	ts     *httptest.Server
-	now    time.Time
-	nowMu  sync.Mutex
-	host   linkv1connect.HostServiceClient
-	client linkv1connect.LinkServiceClient // unauthenticated
+	t       *testing.T
+	srv     *link.Server
+	id      *identity.Identity
+	reg     *registry.Registry
+	pairs   *pairing.Manager
+	exec    *fakeExec
+	panes   *fakePanes
+	digests fakeDigests
+	ts      *httptest.Server
+	now     time.Time
+	nowMu   sync.Mutex
+	host    linkv1connect.HostServiceClient
+	client  linkv1connect.LinkServiceClient // unauthenticated
 }
 
 func newRig(t *testing.T) *rig {
@@ -116,13 +125,14 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := &rig{t: t, id: id, reg: reg, pairs: &pairing.Manager{}, exec: newFakeExec(), panes: newFakePanes(), now: time.Now()}
+	r := &rig{t: t, id: id, reg: reg, pairs: &pairing.Manager{}, exec: newFakeExec(), panes: newFakePanes(), digests: fakeDigests{}, now: time.Now()}
 	r.srv = link.NewServer(link.Options{
 		Identity:  id,
 		Registry:  reg,
 		Pairing:   r.pairs,
 		Executor:  r.exec,
 		Panes:     r.panes,
+		Digests:   r.digests,
 		HostName:  "test host",
 		Heartbeat: 50 * time.Millisecond,
 		Now: func() time.Time {
@@ -576,6 +586,60 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for %s", what)
+}
+
+func TestGetDigestRequiresSessionRead(t *testing.T) {
+	r := newRig(t)
+	r.digests["sess-1"] = projection.Digest{ID: "d1", SessionID: "sess-1", Headline: "did a thing"}
+	d := r.pair(registry.CapStatusRead) // reader, but not of session content
+	r.authenticate(d)
+
+	_, err := d.link.GetDigest(context.Background(), connect.NewRequest(&linkv1.GetDigestRequest{SessionId: "sess-1"}))
+	if code(err) != connect.CodePermissionDenied {
+		t.Fatalf("digest without session.read: %v", err)
+	}
+}
+
+func TestGetDigestServesTheFullArtifact(t *testing.T) {
+	r := newRig(t)
+	r.digests["sess-1"] = projection.Digest{
+		ID:         "d1",
+		SessionID:  "sess-1",
+		Headline:   "shipped the thing",
+		Bullets:    []string{"one", "two"},
+		FullText:   "the complete reply, every word of it",
+		Prompt:     "please ship the thing",
+		Reply:      "looks good, ship it",
+		ReplyState: "ready",
+		Model:      "test-model",
+		CostUSD:    0.0042,
+		At:         time.Now().Truncate(time.Second),
+	}
+	d := r.pair()
+	r.authenticate(d)
+
+	got, err := d.link.GetDigest(context.Background(), connect.NewRequest(&linkv1.GetDigestRequest{SessionId: "sess-1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dig := got.Msg.Digest
+	if dig.FullText != "the complete reply, every word of it" ||
+		dig.Headline != "shipped the thing" || len(dig.Bullets) != 2 ||
+		dig.Prompt != "please ship the thing" || dig.Reply != "looks good, ship it" ||
+		dig.ReplyState != "ready" {
+		t.Fatalf("digest came back wrong: %+v", dig)
+	}
+
+	// A session with no digest is NotFound, not an empty artifact — the
+	// surface renders "nothing yet", never a blank page it must diagnose.
+	_, err = d.link.GetDigest(context.Background(), connect.NewRequest(&linkv1.GetDigestRequest{SessionId: "sess-none"}))
+	if code(err) != connect.CodeNotFound {
+		t.Fatalf("missing digest: %v", err)
+	}
+	_, err = d.link.GetDigest(context.Background(), connect.NewRequest(&linkv1.GetDigestRequest{}))
+	if code(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty session id: %v", err)
+	}
 }
 
 func TestPaneStreamRequiresSessionRead(t *testing.T) {
