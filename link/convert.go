@@ -19,6 +19,7 @@ func statusToProto(s projection.Status, at time.Time) *linkv1.Status {
 		Hostname:    s.Hostname,
 		RookVersion: s.RookVersion,
 		HostId:      s.HostID,
+		Usage:       usageToProto(s.Usage),
 	}
 	if !at.IsZero() {
 		out.At = timestamppb.New(at)
@@ -64,6 +65,50 @@ func statusToProto(s projection.Status, at time.Time) *linkv1.Status {
 	return out
 }
 
+func usageToProto(u *projection.Usage) *linkv1.Usage {
+	if u == nil {
+		return nil
+	}
+	out := &linkv1.Usage{
+		Mode:            u.Mode,
+		SessionPct:      int32(u.SessionPct),
+		SessionResets:   u.SessionResets,
+		WeekAllPct:      int32(u.WeekAllPct),
+		WeekAllResets:   u.WeekAllResets,
+		WeekModelName:   u.WeekModelName,
+		WeekModelPct:    int32(u.WeekModelPct),
+		WeekModelResets: u.WeekModelResets,
+		AgentTodayUsd:   u.AgentTodayUSD,
+		AgentWeekUsd:    u.AgentWeekUSD,
+	}
+	if !u.At.IsZero() {
+		out.At = timestamppb.New(u.At)
+	}
+	return out
+}
+
+func usageFromProto(p *linkv1.Usage) *projection.Usage {
+	if p == nil {
+		return nil
+	}
+	out := &projection.Usage{
+		Mode:            p.Mode,
+		SessionPct:      int(p.SessionPct),
+		SessionResets:   p.SessionResets,
+		WeekAllPct:      int(p.WeekAllPct),
+		WeekAllResets:   p.WeekAllResets,
+		WeekModelName:   p.WeekModelName,
+		WeekModelPct:    int(p.WeekModelPct),
+		WeekModelResets: p.WeekModelResets,
+		AgentTodayUSD:   p.AgentTodayUsd,
+		AgentWeekUSD:    p.AgentWeekUsd,
+	}
+	if p.At != nil {
+		out.At = p.At.AsTime()
+	}
+	return out
+}
+
 func statusFromProto(p *linkv1.Status) projection.Status {
 	if p == nil {
 		return projection.Status{}
@@ -72,6 +117,7 @@ func statusFromProto(p *linkv1.Status) projection.Status {
 		Hostname:    p.Hostname,
 		RookVersion: p.RookVersion,
 		HostID:      p.HostId,
+		Usage:       usageFromProto(p.Usage),
 	}
 	for _, pw := range p.Workspaces {
 		w := projection.Workspace{

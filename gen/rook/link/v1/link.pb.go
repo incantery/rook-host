@@ -1859,7 +1859,11 @@ type Status struct {
 	// carry). It rides EVERY rail so a surface seeing this machine
 	// twice — cloud and direct — can prove both are one machine and
 	// collapse them. Hostnames are display; this is identity.
-	HostId        string `protobuf:"bytes,5,opt,name=host_id,json=hostId,proto3" json:"host_id,omitempty"`
+	HostId string `protobuf:"bytes,5,opt,name=host_id,json=hostId,proto3" json:"host_id,omitempty"`
+	// Account-level usage: the Claude subscription's rate-limit windows
+	// as the claude CLI reports them, plus the rook agent's own model
+	// bill. Absent when the machine collects neither.
+	Usage         *Usage `protobuf:"bytes,6,opt,name=usage,proto3" json:"usage,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1929,6 +1933,140 @@ func (x *Status) GetHostId() string {
 	return ""
 }
 
+func (x *Status) GetUsage() *Usage {
+	if x != nil {
+		return x.Usage
+	}
+	return nil
+}
+
+// Usage is one machine's account-level usage report. mode says which
+// billing world the percentages come from ("subscription" today).
+type Usage struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Mode            string                 `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
+	SessionPct      int32                  `protobuf:"varint,2,opt,name=session_pct,json=sessionPct,proto3" json:"session_pct,omitempty"`
+	SessionResets   string                 `protobuf:"bytes,3,opt,name=session_resets,json=sessionResets,proto3" json:"session_resets,omitempty"`
+	WeekAllPct      int32                  `protobuf:"varint,4,opt,name=week_all_pct,json=weekAllPct,proto3" json:"week_all_pct,omitempty"`
+	WeekAllResets   string                 `protobuf:"bytes,5,opt,name=week_all_resets,json=weekAllResets,proto3" json:"week_all_resets,omitempty"`
+	WeekModelName   string                 `protobuf:"bytes,6,opt,name=week_model_name,json=weekModelName,proto3" json:"week_model_name,omitempty"`
+	WeekModelPct    int32                  `protobuf:"varint,7,opt,name=week_model_pct,json=weekModelPct,proto3" json:"week_model_pct,omitempty"`
+	WeekModelResets string                 `protobuf:"bytes,8,opt,name=week_model_resets,json=weekModelResets,proto3" json:"week_model_resets,omitempty"`
+	At              *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=at,proto3" json:"at,omitempty"`
+	// The membrane's own bill: digests, drafts, and now-lines.
+	AgentTodayUsd float64 `protobuf:"fixed64,10,opt,name=agent_today_usd,json=agentTodayUsd,proto3" json:"agent_today_usd,omitempty"`
+	AgentWeekUsd  float64 `protobuf:"fixed64,11,opt,name=agent_week_usd,json=agentWeekUsd,proto3" json:"agent_week_usd,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Usage) Reset() {
+	*x = Usage{}
+	mi := &file_rook_link_v1_link_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Usage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Usage) ProtoMessage() {}
+
+func (x *Usage) ProtoReflect() protoreflect.Message {
+	mi := &file_rook_link_v1_link_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Usage.ProtoReflect.Descriptor instead.
+func (*Usage) Descriptor() ([]byte, []int) {
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *Usage) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *Usage) GetSessionPct() int32 {
+	if x != nil {
+		return x.SessionPct
+	}
+	return 0
+}
+
+func (x *Usage) GetSessionResets() string {
+	if x != nil {
+		return x.SessionResets
+	}
+	return ""
+}
+
+func (x *Usage) GetWeekAllPct() int32 {
+	if x != nil {
+		return x.WeekAllPct
+	}
+	return 0
+}
+
+func (x *Usage) GetWeekAllResets() string {
+	if x != nil {
+		return x.WeekAllResets
+	}
+	return ""
+}
+
+func (x *Usage) GetWeekModelName() string {
+	if x != nil {
+		return x.WeekModelName
+	}
+	return ""
+}
+
+func (x *Usage) GetWeekModelPct() int32 {
+	if x != nil {
+		return x.WeekModelPct
+	}
+	return 0
+}
+
+func (x *Usage) GetWeekModelResets() string {
+	if x != nil {
+		return x.WeekModelResets
+	}
+	return ""
+}
+
+func (x *Usage) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
+}
+
+func (x *Usage) GetAgentTodayUsd() float64 {
+	if x != nil {
+		return x.AgentTodayUsd
+	}
+	return 0
+}
+
+func (x *Usage) GetAgentWeekUsd() float64 {
+	if x != nil {
+		return x.AgentWeekUsd
+	}
+	return 0
+}
+
 type Workspace struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`     // ≤200 bytes
@@ -1941,7 +2079,7 @@ type Workspace struct {
 
 func (x *Workspace) Reset() {
 	*x = Workspace{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[25]
+	mi := &file_rook_link_v1_link_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1953,7 +2091,7 @@ func (x *Workspace) String() string {
 func (*Workspace) ProtoMessage() {}
 
 func (x *Workspace) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[25]
+	mi := &file_rook_link_v1_link_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1966,7 +2104,7 @@ func (x *Workspace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Workspace.ProtoReflect.Descriptor instead.
 func (*Workspace) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{25}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *Workspace) GetName() string {
@@ -2029,7 +2167,7 @@ type Agent struct {
 
 func (x *Agent) Reset() {
 	*x = Agent{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[26]
+	mi := &file_rook_link_v1_link_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2041,7 +2179,7 @@ func (x *Agent) String() string {
 func (*Agent) ProtoMessage() {}
 
 func (x *Agent) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[26]
+	mi := &file_rook_link_v1_link_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2054,7 +2192,7 @@ func (x *Agent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Agent.ProtoReflect.Descriptor instead.
 func (*Agent) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{26}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *Agent) GetId() string {
@@ -2159,7 +2297,7 @@ type AgentDigest struct {
 
 func (x *AgentDigest) Reset() {
 	*x = AgentDigest{}
-	mi := &file_rook_link_v1_link_proto_msgTypes[27]
+	mi := &file_rook_link_v1_link_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2171,7 +2309,7 @@ func (x *AgentDigest) String() string {
 func (*AgentDigest) ProtoMessage() {}
 
 func (x *AgentDigest) ProtoReflect() protoreflect.Message {
-	mi := &file_rook_link_v1_link_proto_msgTypes[27]
+	mi := &file_rook_link_v1_link_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2184,7 +2322,7 @@ func (x *AgentDigest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentDigest.ProtoReflect.Descriptor instead.
 func (*AgentDigest) Descriptor() ([]byte, []int) {
-	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{27}
+	return file_rook_link_v1_link_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *AgentDigest) GetHeadline() string {
@@ -2329,7 +2467,7 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"\x03len\x18\x02 \x01(\rR\x03len\x12\x0e\n" +
 	"\x02fg\x18\x03 \x01(\rR\x02fg\x12\x0e\n" +
 	"\x02bg\x18\x04 \x01(\rR\x02bg\x12\x14\n" +
-	"\x05attrs\x18\x05 \x01(\rR\x05attrs\"\xc5\x01\n" +
+	"\x05attrs\x18\x05 \x01(\rR\x05attrs\"\xf0\x01\n" +
 	"\x06Status\x12\x1a\n" +
 	"\bhostname\x18\x01 \x01(\tR\bhostname\x12!\n" +
 	"\frook_version\x18\x02 \x01(\tR\vrookVersion\x127\n" +
@@ -2337,7 +2475,23 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"workspaces\x18\x03 \x03(\v2\x17.rook.link.v1.WorkspaceR\n" +
 	"workspaces\x12*\n" +
 	"\x02at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x17\n" +
-	"\ahost_id\x18\x05 \x01(\tR\x06hostId\"\x82\x01\n" +
+	"\ahost_id\x18\x05 \x01(\tR\x06hostId\x12)\n" +
+	"\x05usage\x18\x06 \x01(\v2\x13.rook.link.v1.UsageR\x05usage\"\xa1\x03\n" +
+	"\x05Usage\x12\x12\n" +
+	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1f\n" +
+	"\vsession_pct\x18\x02 \x01(\x05R\n" +
+	"sessionPct\x12%\n" +
+	"\x0esession_resets\x18\x03 \x01(\tR\rsessionResets\x12 \n" +
+	"\fweek_all_pct\x18\x04 \x01(\x05R\n" +
+	"weekAllPct\x12&\n" +
+	"\x0fweek_all_resets\x18\x05 \x01(\tR\rweekAllResets\x12&\n" +
+	"\x0fweek_model_name\x18\x06 \x01(\tR\rweekModelName\x12$\n" +
+	"\x0eweek_model_pct\x18\a \x01(\x05R\fweekModelPct\x12*\n" +
+	"\x11week_model_resets\x18\b \x01(\tR\x0fweekModelResets\x12*\n" +
+	"\x02at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12&\n" +
+	"\x0fagent_today_usd\x18\n" +
+	" \x01(\x01R\ragentTodayUsd\x12$\n" +
+	"\x0eagent_week_usd\x18\v \x01(\x01R\fagentWeekUsd\"\x82\x01\n" +
 	"\tWorkspace\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1c\n" +
@@ -2406,7 +2560,7 @@ func file_rook_link_v1_link_proto_rawDescGZIP() []byte {
 }
 
 var file_rook_link_v1_link_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_rook_link_v1_link_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_rook_link_v1_link_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_rook_link_v1_link_proto_goTypes = []any{
 	(CommandKind)(0),              // 0: rook.link.v1.CommandKind
 	(Disposition)(0),              // 1: rook.link.v1.Disposition
@@ -2438,14 +2592,15 @@ var file_rook_link_v1_link_proto_goTypes = []any{
 	(*PaneRow)(nil),               // 27: rook.link.v1.PaneRow
 	(*StyleRun)(nil),              // 28: rook.link.v1.StyleRun
 	(*Status)(nil),                // 29: rook.link.v1.Status
-	(*Workspace)(nil),             // 30: rook.link.v1.Workspace
-	(*Agent)(nil),                 // 31: rook.link.v1.Agent
-	(*AgentDigest)(nil),           // 32: rook.link.v1.AgentDigest
-	(*timestamppb.Timestamp)(nil), // 33: google.protobuf.Timestamp
+	(*Usage)(nil),                 // 30: rook.link.v1.Usage
+	(*Workspace)(nil),             // 31: rook.link.v1.Workspace
+	(*Agent)(nil),                 // 32: rook.link.v1.Agent
+	(*AgentDigest)(nil),           // 33: rook.link.v1.AgentDigest
+	(*timestamppb.Timestamp)(nil), // 34: google.protobuf.Timestamp
 }
 var file_rook_link_v1_link_proto_depIdxs = []int32{
-	33, // 0: rook.link.v1.ChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
-	33, // 1: rook.link.v1.AuthenticateResponse.expires_at:type_name -> google.protobuf.Timestamp
+	34, // 0: rook.link.v1.ChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	34, // 1: rook.link.v1.AuthenticateResponse.expires_at:type_name -> google.protobuf.Timestamp
 	29, // 2: rook.link.v1.GetStatusResponse.status:type_name -> rook.link.v1.Status
 	3,  // 3: rook.link.v1.WatchStatusResponse.kind:type_name -> rook.link.v1.WatchStatusResponse.Kind
 	29, // 4: rook.link.v1.WatchStatusResponse.status:type_name -> rook.link.v1.Status
@@ -2453,44 +2608,46 @@ var file_rook_link_v1_link_proto_depIdxs = []int32{
 	0,  // 6: rook.link.v1.SubmitCommandRequest.kind:type_name -> rook.link.v1.CommandKind
 	1,  // 7: rook.link.v1.SubmitCommandResponse.disposition:type_name -> rook.link.v1.Disposition
 	23, // 8: rook.link.v1.GetDigestResponse.digest:type_name -> rook.link.v1.Digest
-	33, // 9: rook.link.v1.Digest.at:type_name -> google.protobuf.Timestamp
+	34, // 9: rook.link.v1.Digest.at:type_name -> google.protobuf.Timestamp
 	4,  // 10: rook.link.v1.WatchPaneResponse.kind:type_name -> rook.link.v1.WatchPaneResponse.Kind
 	26, // 11: rook.link.v1.WatchPaneResponse.frame:type_name -> rook.link.v1.PaneFrame
 	27, // 12: rook.link.v1.PaneFrame.lines:type_name -> rook.link.v1.PaneRow
 	28, // 13: rook.link.v1.PaneRow.runs:type_name -> rook.link.v1.StyleRun
-	30, // 14: rook.link.v1.Status.workspaces:type_name -> rook.link.v1.Workspace
-	33, // 15: rook.link.v1.Status.at:type_name -> google.protobuf.Timestamp
-	31, // 16: rook.link.v1.Workspace.agents:type_name -> rook.link.v1.Agent
-	2,  // 17: rook.link.v1.Agent.state:type_name -> rook.link.v1.AgentState
-	32, // 18: rook.link.v1.Agent.digest:type_name -> rook.link.v1.AgentDigest
-	33, // 19: rook.link.v1.Agent.last_event:type_name -> google.protobuf.Timestamp
-	33, // 20: rook.link.v1.Agent.now_at:type_name -> google.protobuf.Timestamp
-	33, // 21: rook.link.v1.AgentDigest.at:type_name -> google.protobuf.Timestamp
-	5,  // 22: rook.link.v1.HostService.GetHostInfo:input_type -> rook.link.v1.GetHostInfoRequest
-	7,  // 23: rook.link.v1.HostService.Pair:input_type -> rook.link.v1.PairRequest
-	9,  // 24: rook.link.v1.HostService.Challenge:input_type -> rook.link.v1.ChallengeRequest
-	11, // 25: rook.link.v1.HostService.Authenticate:input_type -> rook.link.v1.AuthenticateRequest
-	13, // 26: rook.link.v1.LinkService.GetStatus:input_type -> rook.link.v1.GetStatusRequest
-	15, // 27: rook.link.v1.LinkService.WatchStatus:input_type -> rook.link.v1.WatchStatusRequest
-	17, // 28: rook.link.v1.LinkService.SubmitAnswer:input_type -> rook.link.v1.SubmitAnswerRequest
-	19, // 29: rook.link.v1.LinkService.SubmitCommand:input_type -> rook.link.v1.SubmitCommandRequest
-	21, // 30: rook.link.v1.LinkService.GetDigest:input_type -> rook.link.v1.GetDigestRequest
-	24, // 31: rook.link.v1.LinkService.WatchPane:input_type -> rook.link.v1.WatchPaneRequest
-	6,  // 32: rook.link.v1.HostService.GetHostInfo:output_type -> rook.link.v1.GetHostInfoResponse
-	8,  // 33: rook.link.v1.HostService.Pair:output_type -> rook.link.v1.PairResponse
-	10, // 34: rook.link.v1.HostService.Challenge:output_type -> rook.link.v1.ChallengeResponse
-	12, // 35: rook.link.v1.HostService.Authenticate:output_type -> rook.link.v1.AuthenticateResponse
-	14, // 36: rook.link.v1.LinkService.GetStatus:output_type -> rook.link.v1.GetStatusResponse
-	16, // 37: rook.link.v1.LinkService.WatchStatus:output_type -> rook.link.v1.WatchStatusResponse
-	18, // 38: rook.link.v1.LinkService.SubmitAnswer:output_type -> rook.link.v1.SubmitAnswerResponse
-	20, // 39: rook.link.v1.LinkService.SubmitCommand:output_type -> rook.link.v1.SubmitCommandResponse
-	22, // 40: rook.link.v1.LinkService.GetDigest:output_type -> rook.link.v1.GetDigestResponse
-	25, // 41: rook.link.v1.LinkService.WatchPane:output_type -> rook.link.v1.WatchPaneResponse
-	32, // [32:42] is the sub-list for method output_type
-	22, // [22:32] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	31, // 14: rook.link.v1.Status.workspaces:type_name -> rook.link.v1.Workspace
+	34, // 15: rook.link.v1.Status.at:type_name -> google.protobuf.Timestamp
+	30, // 16: rook.link.v1.Status.usage:type_name -> rook.link.v1.Usage
+	34, // 17: rook.link.v1.Usage.at:type_name -> google.protobuf.Timestamp
+	32, // 18: rook.link.v1.Workspace.agents:type_name -> rook.link.v1.Agent
+	2,  // 19: rook.link.v1.Agent.state:type_name -> rook.link.v1.AgentState
+	33, // 20: rook.link.v1.Agent.digest:type_name -> rook.link.v1.AgentDigest
+	34, // 21: rook.link.v1.Agent.last_event:type_name -> google.protobuf.Timestamp
+	34, // 22: rook.link.v1.Agent.now_at:type_name -> google.protobuf.Timestamp
+	34, // 23: rook.link.v1.AgentDigest.at:type_name -> google.protobuf.Timestamp
+	5,  // 24: rook.link.v1.HostService.GetHostInfo:input_type -> rook.link.v1.GetHostInfoRequest
+	7,  // 25: rook.link.v1.HostService.Pair:input_type -> rook.link.v1.PairRequest
+	9,  // 26: rook.link.v1.HostService.Challenge:input_type -> rook.link.v1.ChallengeRequest
+	11, // 27: rook.link.v1.HostService.Authenticate:input_type -> rook.link.v1.AuthenticateRequest
+	13, // 28: rook.link.v1.LinkService.GetStatus:input_type -> rook.link.v1.GetStatusRequest
+	15, // 29: rook.link.v1.LinkService.WatchStatus:input_type -> rook.link.v1.WatchStatusRequest
+	17, // 30: rook.link.v1.LinkService.SubmitAnswer:input_type -> rook.link.v1.SubmitAnswerRequest
+	19, // 31: rook.link.v1.LinkService.SubmitCommand:input_type -> rook.link.v1.SubmitCommandRequest
+	21, // 32: rook.link.v1.LinkService.GetDigest:input_type -> rook.link.v1.GetDigestRequest
+	24, // 33: rook.link.v1.LinkService.WatchPane:input_type -> rook.link.v1.WatchPaneRequest
+	6,  // 34: rook.link.v1.HostService.GetHostInfo:output_type -> rook.link.v1.GetHostInfoResponse
+	8,  // 35: rook.link.v1.HostService.Pair:output_type -> rook.link.v1.PairResponse
+	10, // 36: rook.link.v1.HostService.Challenge:output_type -> rook.link.v1.ChallengeResponse
+	12, // 37: rook.link.v1.HostService.Authenticate:output_type -> rook.link.v1.AuthenticateResponse
+	14, // 38: rook.link.v1.LinkService.GetStatus:output_type -> rook.link.v1.GetStatusResponse
+	16, // 39: rook.link.v1.LinkService.WatchStatus:output_type -> rook.link.v1.WatchStatusResponse
+	18, // 40: rook.link.v1.LinkService.SubmitAnswer:output_type -> rook.link.v1.SubmitAnswerResponse
+	20, // 41: rook.link.v1.LinkService.SubmitCommand:output_type -> rook.link.v1.SubmitCommandResponse
+	22, // 42: rook.link.v1.LinkService.GetDigest:output_type -> rook.link.v1.GetDigestResponse
+	25, // 43: rook.link.v1.LinkService.WatchPane:output_type -> rook.link.v1.WatchPaneResponse
+	34, // [34:44] is the sub-list for method output_type
+	24, // [24:34] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_rook_link_v1_link_proto_init() }
@@ -2504,7 +2661,7 @@ func file_rook_link_v1_link_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rook_link_v1_link_proto_rawDesc), len(file_rook_link_v1_link_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   28,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

@@ -156,6 +156,31 @@ type Status struct {
 	// collapse them. Hostnames are display; this is identity.
 	HostID     string      `bson:"hostId,omitempty" json:"hostId,omitempty"`
 	Workspaces []Workspace `bson:"workspaces,omitempty" json:"workspaces,omitempty"`
+	// Usage is the machine's account-level spend picture: the Claude
+	// subscription's rate-limit windows (as the claude CLI itself
+	// reports them — rook does no arithmetic of its own here) and the
+	// rook agent's own model bill. Absent when the machine collects
+	// neither.
+	Usage *Usage `bson:"usage,omitempty" json:"usage,omitempty"`
+}
+
+// Usage is one machine's account-level usage report. Mode says which
+// billing world the percentages come from ("subscription" today; an
+// "api" token-economics mode can join without a shape change). The
+// Agent*USD fields are the membrane's own bill — what the rook agent
+// spent on digests, drafts, and now-lines.
+type Usage struct {
+	Mode            string    `bson:"mode" json:"mode"`
+	SessionPct      int       `bson:"sessionPct,omitempty" json:"sessionPct,omitempty"`
+	SessionResets   string    `bson:"sessionResets,omitempty" json:"sessionResets,omitempty"`
+	WeekAllPct      int       `bson:"weekAllPct,omitempty" json:"weekAllPct,omitempty"`
+	WeekAllResets   string    `bson:"weekAllResets,omitempty" json:"weekAllResets,omitempty"`
+	WeekModelName   string    `bson:"weekModelName,omitempty" json:"weekModelName,omitempty"`
+	WeekModelPct    int       `bson:"weekModelPct,omitempty" json:"weekModelPct,omitempty"`
+	WeekModelResets string    `bson:"weekModelResets,omitempty" json:"weekModelResets,omitempty"`
+	At              time.Time `bson:"at,omitempty" json:"at,omitzero"`
+	AgentTodayUSD   float64   `bson:"agentTodayUsd,omitempty" json:"agentTodayUsd,omitempty"`
+	AgentWeekUSD    float64   `bson:"agentWeekUsd,omitempty" json:"agentWeekUsd,omitempty"`
 }
 
 type Workspace struct {
@@ -230,6 +255,13 @@ func (s *Status) Clamp() {
 	s.Hostname = clip(s.Hostname, maxShort)
 	s.RookVersion = clip(s.RookVersion, maxShort)
 	s.HostID = clip(s.HostID, MaxAskIDLen)
+	if u := s.Usage; u != nil {
+		u.Mode = clip(u.Mode, 32)
+		u.SessionResets = clip(u.SessionResets, 100)
+		u.WeekAllResets = clip(u.WeekAllResets, 100)
+		u.WeekModelName = clip(u.WeekModelName, 64)
+		u.WeekModelResets = clip(u.WeekModelResets, 100)
+	}
 	if len(s.Workspaces) > maxWorkspaces {
 		s.Workspaces = s.Workspaces[:maxWorkspaces]
 	}

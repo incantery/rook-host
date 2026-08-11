@@ -372,6 +372,27 @@ message Status {
   // twice — cloud and direct — can prove both are one machine and
   // collapse them. Hostnames are display; this is identity.
   string host_id = 5;
+  // Account-level usage: the Claude subscription's rate-limit windows
+  // as the claude CLI reports them, plus the rook agent's own model
+  // bill. Absent when the machine collects neither.
+  Usage usage = 6;
+}
+
+// Usage is one machine's account-level usage report. mode says which
+// billing world the percentages come from ("subscription" today).
+message Usage {
+  string mode = 1;
+  int32 session_pct = 2;
+  string session_resets = 3;
+  int32 week_all_pct = 4;
+  string week_all_resets = 5;
+  string week_model_name = 6;
+  int32 week_model_pct = 7;
+  string week_model_resets = 8;
+  google.protobuf.Timestamp at = 9;
+  // The membrane's own bill: digests, drafts, and now-lines.
+  double agent_today_usd = 10;
+  double agent_week_usd = 11;
 }
 
 message Workspace {
