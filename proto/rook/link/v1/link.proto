@@ -389,6 +389,12 @@ message Agent {
   int32 ctx_pct = 8;
   AgentDigest digest = 9;
   google.protobuf.Timestamp last_event = 10;
+  // The membrane's live line: what the session's screen says is
+  // happening at now_at, refreshed every ~20s while the session is
+  // WORKING and absent otherwise — the mid-turn counterpart of digest.
+  // ≤200 bytes.
+  string now = 11;
+  google.protobuf.Timestamp now_at = 12;
 }
 
 enum AgentState {

@@ -2001,9 +2001,15 @@ type Agent struct {
 	CostUsd float64    `protobuf:"fixed64,7,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
 	// Context occupancy as a percent of the model's window. 0 means
 	// unreported; >100 is possible and honest.
-	CtxPct        int32                  `protobuf:"varint,8,opt,name=ctx_pct,json=ctxPct,proto3" json:"ctx_pct,omitempty"`
-	Digest        *AgentDigest           `protobuf:"bytes,9,opt,name=digest,proto3" json:"digest,omitempty"`
-	LastEvent     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_event,json=lastEvent,proto3" json:"last_event,omitempty"`
+	CtxPct    int32                  `protobuf:"varint,8,opt,name=ctx_pct,json=ctxPct,proto3" json:"ctx_pct,omitempty"`
+	Digest    *AgentDigest           `protobuf:"bytes,9,opt,name=digest,proto3" json:"digest,omitempty"`
+	LastEvent *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_event,json=lastEvent,proto3" json:"last_event,omitempty"`
+	// The membrane's live line: what the session's screen says is
+	// happening at now_at, refreshed every ~20s while the session is
+	// WORKING and absent otherwise — the mid-turn counterpart of digest.
+	// ≤200 bytes.
+	Now           string                 `protobuf:"bytes,11,opt,name=now,proto3" json:"now,omitempty"`
+	NowAt         *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=now_at,json=nowAt,proto3" json:"now_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2104,6 +2110,20 @@ func (x *Agent) GetDigest() *AgentDigest {
 func (x *Agent) GetLastEvent() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LastEvent
+	}
+	return nil
+}
+
+func (x *Agent) GetNow() string {
+	if x != nil {
+		return x.Now
+	}
+	return ""
+}
+
+func (x *Agent) GetNowAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NowAt
 	}
 	return nil
 }
@@ -2302,7 +2322,7 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1c\n" +
 	"\tattention\x18\x03 \x01(\x05R\tattention\x12+\n" +
-	"\x06agents\x18\x04 \x03(\v2\x13.rook.link.v1.AgentR\x06agents\"\xbe\x02\n" +
+	"\x06agents\x18\x04 \x03(\v2\x13.rook.link.v1.AgentR\x06agents\"\x83\x03\n" +
 	"\x05Agent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
 	"\x05state\x18\x02 \x01(\x0e2\x18.rook.link.v1.AgentStateR\x05state\x12\x14\n" +
@@ -2315,7 +2335,9 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"\x06digest\x18\t \x01(\v2\x19.rook.link.v1.AgentDigestR\x06digest\x129\n" +
 	"\n" +
 	"last_event\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tlastEvent\"o\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tlastEvent\x12\x10\n" +
+	"\x03now\x18\v \x01(\tR\x03now\x121\n" +
+	"\x06now_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x05nowAt\"o\n" +
 	"\vAgentDigest\x12\x1a\n" +
 	"\bheadline\x18\x01 \x01(\tR\bheadline\x12\x18\n" +
 	"\abullets\x18\x02 \x03(\tR\abullets\x12*\n" +
@@ -2420,32 +2442,33 @@ var file_rook_link_v1_link_proto_depIdxs = []int32{
 	2,  // 17: rook.link.v1.Agent.state:type_name -> rook.link.v1.AgentState
 	32, // 18: rook.link.v1.Agent.digest:type_name -> rook.link.v1.AgentDigest
 	33, // 19: rook.link.v1.Agent.last_event:type_name -> google.protobuf.Timestamp
-	33, // 20: rook.link.v1.AgentDigest.at:type_name -> google.protobuf.Timestamp
-	5,  // 21: rook.link.v1.HostService.GetHostInfo:input_type -> rook.link.v1.GetHostInfoRequest
-	7,  // 22: rook.link.v1.HostService.Pair:input_type -> rook.link.v1.PairRequest
-	9,  // 23: rook.link.v1.HostService.Challenge:input_type -> rook.link.v1.ChallengeRequest
-	11, // 24: rook.link.v1.HostService.Authenticate:input_type -> rook.link.v1.AuthenticateRequest
-	13, // 25: rook.link.v1.LinkService.GetStatus:input_type -> rook.link.v1.GetStatusRequest
-	15, // 26: rook.link.v1.LinkService.WatchStatus:input_type -> rook.link.v1.WatchStatusRequest
-	17, // 27: rook.link.v1.LinkService.SubmitAnswer:input_type -> rook.link.v1.SubmitAnswerRequest
-	19, // 28: rook.link.v1.LinkService.SubmitCommand:input_type -> rook.link.v1.SubmitCommandRequest
-	21, // 29: rook.link.v1.LinkService.GetDigest:input_type -> rook.link.v1.GetDigestRequest
-	24, // 30: rook.link.v1.LinkService.WatchPane:input_type -> rook.link.v1.WatchPaneRequest
-	6,  // 31: rook.link.v1.HostService.GetHostInfo:output_type -> rook.link.v1.GetHostInfoResponse
-	8,  // 32: rook.link.v1.HostService.Pair:output_type -> rook.link.v1.PairResponse
-	10, // 33: rook.link.v1.HostService.Challenge:output_type -> rook.link.v1.ChallengeResponse
-	12, // 34: rook.link.v1.HostService.Authenticate:output_type -> rook.link.v1.AuthenticateResponse
-	14, // 35: rook.link.v1.LinkService.GetStatus:output_type -> rook.link.v1.GetStatusResponse
-	16, // 36: rook.link.v1.LinkService.WatchStatus:output_type -> rook.link.v1.WatchStatusResponse
-	18, // 37: rook.link.v1.LinkService.SubmitAnswer:output_type -> rook.link.v1.SubmitAnswerResponse
-	20, // 38: rook.link.v1.LinkService.SubmitCommand:output_type -> rook.link.v1.SubmitCommandResponse
-	22, // 39: rook.link.v1.LinkService.GetDigest:output_type -> rook.link.v1.GetDigestResponse
-	25, // 40: rook.link.v1.LinkService.WatchPane:output_type -> rook.link.v1.WatchPaneResponse
-	31, // [31:41] is the sub-list for method output_type
-	21, // [21:31] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	33, // 20: rook.link.v1.Agent.now_at:type_name -> google.protobuf.Timestamp
+	33, // 21: rook.link.v1.AgentDigest.at:type_name -> google.protobuf.Timestamp
+	5,  // 22: rook.link.v1.HostService.GetHostInfo:input_type -> rook.link.v1.GetHostInfoRequest
+	7,  // 23: rook.link.v1.HostService.Pair:input_type -> rook.link.v1.PairRequest
+	9,  // 24: rook.link.v1.HostService.Challenge:input_type -> rook.link.v1.ChallengeRequest
+	11, // 25: rook.link.v1.HostService.Authenticate:input_type -> rook.link.v1.AuthenticateRequest
+	13, // 26: rook.link.v1.LinkService.GetStatus:input_type -> rook.link.v1.GetStatusRequest
+	15, // 27: rook.link.v1.LinkService.WatchStatus:input_type -> rook.link.v1.WatchStatusRequest
+	17, // 28: rook.link.v1.LinkService.SubmitAnswer:input_type -> rook.link.v1.SubmitAnswerRequest
+	19, // 29: rook.link.v1.LinkService.SubmitCommand:input_type -> rook.link.v1.SubmitCommandRequest
+	21, // 30: rook.link.v1.LinkService.GetDigest:input_type -> rook.link.v1.GetDigestRequest
+	24, // 31: rook.link.v1.LinkService.WatchPane:input_type -> rook.link.v1.WatchPaneRequest
+	6,  // 32: rook.link.v1.HostService.GetHostInfo:output_type -> rook.link.v1.GetHostInfoResponse
+	8,  // 33: rook.link.v1.HostService.Pair:output_type -> rook.link.v1.PairResponse
+	10, // 34: rook.link.v1.HostService.Challenge:output_type -> rook.link.v1.ChallengeResponse
+	12, // 35: rook.link.v1.HostService.Authenticate:output_type -> rook.link.v1.AuthenticateResponse
+	14, // 36: rook.link.v1.LinkService.GetStatus:output_type -> rook.link.v1.GetStatusResponse
+	16, // 37: rook.link.v1.LinkService.WatchStatus:output_type -> rook.link.v1.WatchStatusResponse
+	18, // 38: rook.link.v1.LinkService.SubmitAnswer:output_type -> rook.link.v1.SubmitAnswerResponse
+	20, // 39: rook.link.v1.LinkService.SubmitCommand:output_type -> rook.link.v1.SubmitCommandResponse
+	22, // 40: rook.link.v1.LinkService.GetDigest:output_type -> rook.link.v1.GetDigestResponse
+	25, // 41: rook.link.v1.LinkService.WatchPane:output_type -> rook.link.v1.WatchPaneResponse
+	32, // [32:42] is the sub-list for method output_type
+	22, // [22:32] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_rook_link_v1_link_proto_init() }

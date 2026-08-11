@@ -49,6 +49,10 @@ func statusToProto(s projection.Status, at time.Time) *linkv1.Status {
 					pa.Digest.At = timestamppb.New(a.Digest.At)
 				}
 			}
+			pa.Now = a.Now
+			if !a.NowAt.IsZero() {
+				pa.NowAt = timestamppb.New(a.NowAt)
+			}
 			if !a.LastEvent.IsZero() {
 				pa.LastEvent = timestamppb.New(a.LastEvent)
 			}
@@ -93,6 +97,10 @@ func statusFromProto(p *linkv1.Status) projection.Status {
 				if pa.Digest.At != nil {
 					a.Digest.At = pa.Digest.At.AsTime()
 				}
+			}
+			a.Now = pa.Now
+			if pa.NowAt != nil {
+				a.NowAt = pa.NowAt.AsTime()
 			}
 			if pa.LastEvent != nil {
 				a.LastEvent = pa.LastEvent.AsTime()

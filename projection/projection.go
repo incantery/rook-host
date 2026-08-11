@@ -172,8 +172,15 @@ type Agent struct {
 	// one field here that is GENERATED prose rather than raw — the
 	// phone triages by headline, and the raw turn it compresses never
 	// leaves the machine.
-	Digest    *AgentDigest `bson:"digest,omitempty" json:"digest,omitempty"`
-	LastEvent time.Time    `bson:"lastEvent,omitempty" json:"lastEvent,omitzero"`
+	Digest *AgentDigest `bson:"digest,omitempty" json:"digest,omitempty"`
+	// Now is the membrane's live line: what the session's screen says
+	// is happening at NowAt, refreshed every ~20s while the session is
+	// WORKING and absent otherwise. The mid-turn counterpart of Digest
+	// — a finished turn's story is the digest; this is the spinner made
+	// legible. Generated prose, same as Digest.
+	Now       string    `bson:"now,omitempty" json:"now,omitempty"`
+	NowAt     time.Time `bson:"nowAt,omitempty" json:"nowAt,omitzero"`
+	LastEvent time.Time `bson:"lastEvent,omitempty" json:"lastEvent,omitzero"`
 }
 
 // AgentDigest is a headline plus bullets — STE discipline on the
@@ -217,6 +224,7 @@ func (s *Status) Clamp() {
 			a.Ask = clip(a.Ask, maxAsk)
 			a.AskID = clip(a.AskID, MaxAskIDLen)
 			a.Model = clip(a.Model, maxShort)
+			a.Now = clip(a.Now, maxShort)
 			if a.CtxPct < 0 || a.CtxPct > 999 {
 				a.CtxPct = 0
 			}
