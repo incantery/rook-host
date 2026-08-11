@@ -395,6 +395,10 @@ message Agent {
   // ≤200 bytes.
   string now = 11;
   google.protobuf.Timestamp now_at = 12;
+  // This session is open in a live pane on the machine right now. A
+  // quiet-but-attached session is idle at a keyboard, not parked —
+  // surfaces must not offer resume for it (the machine refuses anyway).
+  bool attached = 13;
 }
 
 enum AgentState {

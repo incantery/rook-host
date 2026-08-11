@@ -173,6 +173,14 @@ type Agent struct {
 	// phone triages by headline, and the raw turn it compresses never
 	// leaves the machine.
 	Digest *AgentDigest `bson:"digest,omitempty" json:"digest,omitempty"`
+	// Attached: this session is open in a live pane on the machine
+	// RIGHT NOW — the freshest transcript in a directory where a
+	// Claude-like pane is running (the same heuristic the resume
+	// executor stands on). A quiet-but-attached session is idle at a
+	// keyboard, not parked: surfaces must not offer resume for it (the
+	// machine would refuse anyway — this field is why the button can
+	// know better than to appear).
+	Attached bool `bson:"attached,omitempty" json:"attached,omitempty"`
 	// Now is the membrane's live line: what the session's screen says
 	// is happening at NowAt, refreshed every ~20s while the session is
 	// WORKING and absent otherwise. The mid-turn counterpart of Digest

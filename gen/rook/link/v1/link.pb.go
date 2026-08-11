@@ -2008,8 +2008,12 @@ type Agent struct {
 	// happening at now_at, refreshed every ~20s while the session is
 	// WORKING and absent otherwise — the mid-turn counterpart of digest.
 	// ≤200 bytes.
-	Now           string                 `protobuf:"bytes,11,opt,name=now,proto3" json:"now,omitempty"`
-	NowAt         *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=now_at,json=nowAt,proto3" json:"now_at,omitempty"`
+	Now   string                 `protobuf:"bytes,11,opt,name=now,proto3" json:"now,omitempty"`
+	NowAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=now_at,json=nowAt,proto3" json:"now_at,omitempty"`
+	// This session is open in a live pane on the machine right now. A
+	// quiet-but-attached session is idle at a keyboard, not parked —
+	// surfaces must not offer resume for it (the machine refuses anyway).
+	Attached      bool `protobuf:"varint,13,opt,name=attached,proto3" json:"attached,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2126,6 +2130,13 @@ func (x *Agent) GetNowAt() *timestamppb.Timestamp {
 		return x.NowAt
 	}
 	return nil
+}
+
+func (x *Agent) GetAttached() bool {
+	if x != nil {
+		return x.Attached
+	}
+	return false
 }
 
 type AgentDigest struct {
@@ -2322,7 +2333,7 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1c\n" +
 	"\tattention\x18\x03 \x01(\x05R\tattention\x12+\n" +
-	"\x06agents\x18\x04 \x03(\v2\x13.rook.link.v1.AgentR\x06agents\"\x83\x03\n" +
+	"\x06agents\x18\x04 \x03(\v2\x13.rook.link.v1.AgentR\x06agents\"\x9f\x03\n" +
 	"\x05Agent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
 	"\x05state\x18\x02 \x01(\x0e2\x18.rook.link.v1.AgentStateR\x05state\x12\x14\n" +
@@ -2337,7 +2348,8 @@ const file_rook_link_v1_link_proto_rawDesc = "" +
 	"last_event\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tlastEvent\x12\x10\n" +
 	"\x03now\x18\v \x01(\tR\x03now\x121\n" +
-	"\x06now_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x05nowAt\"o\n" +
+	"\x06now_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x05nowAt\x12\x1a\n" +
+	"\battached\x18\r \x01(\bR\battached\"o\n" +
 	"\vAgentDigest\x12\x1a\n" +
 	"\bheadline\x18\x01 \x01(\tR\bheadline\x12\x18\n" +
 	"\abullets\x18\x02 \x03(\tR\abullets\x12*\n" +
